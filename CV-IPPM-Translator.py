@@ -2,7 +2,7 @@ import anthropic
 
 client = anthropic.Anthropic(
     # defaults to os.environ.get("ANTHROPIC_API_KEY")
-
+    api_key=st.secrets["ANTHROPIC_API_KEY"]
 )
 
 # Replace placeholders like {{SPANISH_DRILL_DESCRIPTION}} with real values,
