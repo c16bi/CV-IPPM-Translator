@@ -516,8 +516,8 @@ It's OK for this section to be quite long. Then provide your complete translatio
                     with st.expander("View Full Response"):
                         st.text(english_translation)
                 
-                # Update the output text area
-                st.session_state.english_output = english_translation
+                # Update the session state instead of trying to modify the widget directly
+                st.session_state.translated_text = english_translation
                 
                 # Add to history
                 translation_entry = {
