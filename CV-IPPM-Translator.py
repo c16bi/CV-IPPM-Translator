@@ -236,6 +236,9 @@ def load_from_local_storage(key: str):
 
 def extract_topic_and_principle(spanish_text: str) -> Dict[str, str]:
     """Extract topic and principle for quick preview"""
+    if not spanish_text:
+        return {'topic': '', 'principle': ''}
+    
     lines = spanish_text.split('\n')
     topic = ""
     principle = ""
@@ -243,6 +246,116 @@ def extract_topic_and_principle(spanish_text: str) -> Dict[str, str]:
     for line in lines:
         line = line.strip()
         if line.startswith('CONTENIDO:'):
+            topic = line.replace('CONTENIDO:', '').strip()
+        elif line.startswith('CONSIGNA:'):
+            principle = line.replace('CONSIGNA:', '').strip()
+    
+    # Simple translations for common terms
+    topic_translations = {
+        'Control y pase': 'Control and pass',
+        'Centro': 'Crossing',
+        'Remate': 'Finishing',
+        'Pase': 'Passing',
+        'Control': 'Control',
+        'Regate': 'Dribbling'
+    }
+    
+    return {
+        'topic': topic_translations.get(topic, topic),
+        'principle': principle[:200] if principle else ''
+    }
+
+def create_download_link(data, filename, file_type="json"):
+    """Create download data for files"""
+    try:
+        if file_type == "json":
+            json_str = json.dumps(data, indent=2, ensure_ascii=False)
+            return json_str.encode('utf-8')
+        elif file_type == "csv":
+            output = io.StringIO()
+            if data:
+                writer = csv.DictWriter(output, fieldnames=data[0].keys())
+                writer.writeheader()
+                writer.writerows(data)
+            return output.getvalue().encode('utf-8')
+    except Exception:
+        return b""  # Return empty bytes if encoding fails
+
+def filter_history(history: List[Dict], search_query: str, filter_date: Optional[str]) -> List[Dict]:
+    """Filter translation history based on search and date"""
+    if not history:
+        return []
+    
+    filtered = history
+    
+    if search_query:
+        search_lower = search_query.lower()
+        filtered = [
+            item for item in filtered 
+            if (search_lower in safe_get(item, 'spanish_input', '').lower() or 
+                search_lower in safe_get(item, 'english_output', '').lower())
+        ]
+    
+    if filter_date:
+        filtered = [
+            item for item in filtered 
+            if safe_get(item, 'timestamp', '').startswith(str(filter_date))
+        ]
+    
+    return filtered
+
+def initialize_session_state():
+    """Initialize session state with defaults"""
+    defaults = {
+        'translation_history': [],
+        'translated_text': "",
+        'custom_prompt': get_default_prompt(),
+        'translation_cache': {},
+        'draft_spanish': "",
+        'current_batch_results': [],
+        'search_query': "",
+        'filter_date': None,
+        'selected_model': "claude-3-7-sonnet-20250107",  # Default to 3.7
+        'api_ready': False
+    }
+    
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+def auto_save_draft():
+    """Auto-save draft functionality with error handling"""
+    try:
+        if 'spanish_input_key' in st.session_state:
+            save_to_local_storage('draft_spanish', st.session_state.spanish_input_key)
+    except Exception:
+        pass  # Fail silently
+
+def setup_api_client():
+    """Setup Anthropic API client with error handling"""
+    try:
+        client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+        st.session_state.api_ready = True
+        return client
+    except KeyError:
+        st.error("⚠️ API key not found. Please set ANTHROPIC_API_KEY in Streamlit secrets.")
+        st.session_state.api_ready = False
+        return None
+    except Exception as e:
+        st.error(f"⚠️ API setup failed: {str(e)}")
+        st.session_state.api_ready = False
+        return None
+
+# Initialize session state
+initialize_session_state()
+
+# Header
+st.markdown("""
+<div class="main-header">
+    <h1>⚽ CV Spanish Drill Translator</h1>
+    <p>Professional football drill translation with advanced features</p>
+</div>
+""", unsafe_allow_html=True):'):
             topic = line.replace('CONTENIDO:', '').strip()
         elif line.startswith('CONSIGNA:'):
             principle = line.replace('CONSIGNA:', '').strip()
