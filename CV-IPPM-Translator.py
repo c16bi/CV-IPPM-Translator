@@ -578,10 +578,17 @@ with tab1:
     with col2:
         st.subheader("🇬🇧 English Output")
         
+        # Check if we have a pending translation to display
+        display_text = st.session_state.translated_text
+        if 'pending_translation' in st.session_state:
+            display_text = st.session_state.pending_translation
+            st.session_state.translated_text = display_text
+            del st.session_state.pending_translation
+        
         english_output = st.text_area(
             "English translation:",
             height=500,
-            value=st.session_state.translated_text,
+            value=display_text,
             key="english_output_key"
         )
         
