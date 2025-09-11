@@ -8,9 +8,11 @@ import time
 st.set_page_config(page_title="CV Spanish Drill Translator", layout="wide")
 st.title("CV Spanish Drill Translator")
 
-# Initialize session state for history
+# Initialize session state for history and translation
 if 'translation_history' not in st.session_state:
     st.session_state.translation_history = []
+if 'translated_text' not in st.session_state:
+    st.session_state.translated_text = ""
 
 # Sidebar for history
 with st.sidebar:
@@ -27,7 +29,7 @@ with st.sidebar:
                 
                 if st.button(f"Load Translation {len(st.session_state.translation_history) - i}", key=f"load_{i}"):
                     st.session_state.loaded_spanish = translation['spanish_input']
-                    st.session_state.loaded_english = translation['english_output']
+                    st.session_state.translated_text = translation['english_output']
                     st.rerun()
         
         if st.button("Clear History"):
@@ -61,13 +63,10 @@ with col1:
 with col2:
     st.header("English Output")
     
-    # Load from history if available
-    default_english = st.session_state.get('loaded_english', '')
-    
     english_output = st.text_area(
         "English translation will appear here:",
         height=600,
-        value=default_english,
+        value=st.session_state.translated_text,
         key="english_output",
         help="Copy this formatted translation for use in Coaches' Voice"
     )
@@ -75,8 +74,6 @@ with col2:
 # Clear loaded history after displaying
 if 'loaded_spanish' in st.session_state:
     del st.session_state.loaded_spanish
-if 'loaded_english' in st.session_state:
-    del st.session_state.loaded_english
 
 # API setup
 try:
@@ -96,11 +93,19 @@ with col_btn2:
 
 # Logging expander
 with st.expander("🔍 API Call Logs", expanded=False):
-    log_container = st.container()
+    log_placeholder = st.empty()
 
 if translate_button and api_ready:
     if spanish_text.strip():
         start_time = time.time()
+        
+        # Initialize logging
+        with log_placeholder.container():
+            st.write("**📤 API Request:**")
+            st.write(f"**Model:** claude-3-7-sonnet-20250219")
+            st.write(f"**Max Tokens:** 20904")
+            st.write(f"**Temperature:** 1")
+            st.write(f"**Request Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
         with st.spinner("Translating..."):
             try:
@@ -455,13 +460,7 @@ Before providing your final translation, systematically analyze the Spanish cont
 - Identify any sections where information appears to be missing and will need reasonable interpretation
 
 It's OK for this section to be quite long. Then provide your complete translation following the format above."""
-
-                # Log the API request
-                with log_container:
-                    st.write("**📤 API Request:**")
-                    st.write(f"**Model:** claude-3-7-sonnet-20250219")
-                    st.write(f"**Max Tokens:** 20904")
-                    st.write(f"**Temperature:** 1")
+                
                     st.write(f"**Request Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
                     
                     with st.expander("View Full Request Payload"):
@@ -504,8 +503,14 @@ It's OK for this section to be quite long. Then provide your complete translatio
                 # Extract the response
                 english_translation = message.content[0].text
                 
-                # Log the API response
-                with log_container:
+                # Update logging with response
+                with log_placeholder.container():
+                    st.write("**📤 API Request:**")
+                    st.write(f"**Model:** claude-3-7-sonnet-20250219")
+                    st.write(f"**Max Tokens:** 20904")
+                    st.write(f"**Temperature:** 1")
+                    st.write(f"**Request Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                    
                     st.write("**📥 API Response:**")
                     st.write(f"**Response Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
                     st.write(f"**Duration:** {end_time - start_time:.2f} seconds")
@@ -516,7 +521,7 @@ It's OK for this section to be quite long. Then provide your complete translatio
                     with st.expander("View Full Response"):
                         st.text(english_translation)
                 
-                # Update the session state instead of trying to modify the widget directly
+                # Update the translated text in session state
                 st.session_state.translated_text = english_translation
                 
                 # Add to history
@@ -534,7 +539,7 @@ It's OK for this section to be quite long. Then provide your complete translatio
                 st.rerun()
                 
             except Exception as e:
-                with log_container:
+                with log_placeholder.container():
                     st.write("**❌ API Error:**")
                     st.write(f"**Error Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
                     st.error(f"Translation failed: {str(e)}")
