@@ -16,12 +16,14 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Available Claude models
+# Available Claude models (based on current API availability)
 CLAUDE_MODELS = {
-    "claude-3-7-sonnet-20250107": "Claude 3.7 Sonnet (Default)",
-    "claude-3-5-sonnet-20241022": "Claude 3.5 Sonnet",
-    "claude-3-5-haiku-20241022": "Claude 3.5 Haiku (Faster/Cheaper)",
-    "claude-3-opus-20240229": "Claude 3 Opus (Most Capable)"
+    "claude-sonnet-4-20250514": "Claude Sonnet 4 (Default - High Performance)",
+    "claude-opus-4-1-20250805": "Claude Opus 4.1 (Most Capable)",
+    "claude-opus-4-20250514": "Claude Opus 4 (Frontier Intelligence)",
+    "claude-3-7-sonnet-20250219": "Claude Sonnet 3.7 (Hybrid Reasoning)",
+    "claude-3-5-haiku-20241022": "Claude Haiku 3.5 (Fast & Efficient)",
+    "claude-3-haiku-20240307": "Claude Haiku 3 (Legacy - Cheapest)"
 }
 
 # Custom CSS for improved UI/UX
@@ -176,7 +178,7 @@ def get_text_hash(text: str) -> str:
     """Generate a hash for caching purposes"""
     return hashlib.md5(text.encode()).hexdigest()
 
-def estimate_tokens(text: str, model: str = "claude-3-7-sonnet-20250107") -> int:
+def estimate_tokens(text: str, model: str = "claude-sonnet-4-20250514") -> int:
     """Rough estimation of tokens based on model"""
     if not text:
         return 0
@@ -184,22 +186,32 @@ def estimate_tokens(text: str, model: str = "claude-3-7-sonnet-20250107") -> int
     base_estimate = len(text) // 4
     
     model_multipliers = {
-        "claude-3-7-sonnet-20250107": 1.0,
-        "claude-3-5-sonnet-20241022": 1.0,
+        "claude-sonnet-4-20250514": 1.0,
+        "claude-opus-4-1-20250805": 1.05,
+        "claude-opus-4-20250514": 1.05,
+        "claude-3-7-sonnet-20250219": 1.0,
         "claude-3-5-haiku-20241022": 0.95,
-        "claude-3-opus-20240229": 1.05
+        "claude-3-haiku-20240307": 0.95
     }
     
     multiplier = model_multipliers.get(model, 1.0)
     return int(base_estimate * multiplier)
 
 def get_model_cost_per_token(model: str) -> dict:
-    """Get cost per token for input/output (USD per 1K tokens)"""
+    """Get cost per token for input/output (USD per 1K tokens) based on official pricing"""
     costs = {
-        "claude-3-7-sonnet-20250107": {"input": 0.003, "output": 0.015},
-        "claude-3-5-sonnet-20241022": {"input": 0.003, "output": 0.015},
-        "claude-3-5-haiku-20241022": {"input": 0.00025, "output": 0.00125},
-        "claude-3-opus-20240229": {"input": 0.015, "output": 0.075}
+        # Claude Sonnet 4 - $3/MTok input, $15/MTok output
+        "claude-sonnet-4-20250514": {"input": 0.003, "output": 0.015},
+        # Claude Opus 4.1 - $15/MTok input, $75/MTok output
+        "claude-opus-4-1-20250805": {"input": 0.015, "output": 0.075},
+        # Claude Opus 4 - $15/MTok input, $75/MTok output
+        "claude-opus-4-20250514": {"input": 0.015, "output": 0.075},
+        # Claude Sonnet 3.7 - $3/MTok input, $15/MTok output
+        "claude-3-7-sonnet-20250219": {"input": 0.003, "output": 0.015},
+        # Claude Haiku 3.5 - $0.80/MTok input, $4/MTok output  
+        "claude-3-5-haiku-20241022": {"input": 0.0008, "output": 0.004},
+        # Claude Haiku 3 (legacy) - $0.25/MTok input, $1.25/MTok output
+        "claude-3-haiku-20240307": {"input": 0.00025, "output": 0.00125}
     }
     return costs.get(model, {"input": 0.003, "output": 0.015})
 
@@ -318,6 +330,10 @@ def initialize_session_state():
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
+    
+    # Fix any invalid model selection from previous sessions
+    if st.session_state.selected_model not in CLAUDE_MODELS:
+        st.session_state.selected_model = "claude-sonnet-4-20250514"
 
 def auto_save_draft():
     """Auto-save draft functionality"""
@@ -359,11 +375,22 @@ with st.sidebar:
     
     # Model Selection
     st.subheader("🤖 Model Selection")
+    
+    # Double-check and fix model selection before rendering dropdown
+    if st.session_state.selected_model not in CLAUDE_MODELS:
+        st.session_state.selected_model = list(CLAUDE_MODELS.keys())[0]
+    
+    try:
+        model_index = list(CLAUDE_MODELS.keys()).index(st.session_state.selected_model)
+    except ValueError:
+        st.session_state.selected_model = list(CLAUDE_MODELS.keys())[0]
+        model_index = 0
+    
     selected_model = st.selectbox(
         "Choose Claude Model:",
         options=list(CLAUDE_MODELS.keys()),
         format_func=lambda x: CLAUDE_MODELS[x],
-        index=list(CLAUDE_MODELS.keys()).index(st.session_state.selected_model),
+        index=model_index,
         key="model_selector",
         help="Different models have different capabilities and costs"
     )
@@ -498,8 +525,14 @@ with tab1:
     with col1:
         st.subheader("🇪🇸 Spanish Input")
         
-        default_spanish = st.session_state.get('loaded_spanish', 
-                                             load_from_local_storage('draft_spanish') or '')
+        # Load from history if available, but handle clear flag
+        default_spanish = ""
+        if st.session_state.get('clear_input_flag', False):
+            st.session_state.clear_input_flag = False
+            save_to_local_storage('draft_spanish', '')
+        else:
+            default_spanish = st.session_state.get('loaded_spanish', 
+                                                 load_from_local_storage('draft_spanish') or '')
         
         spanish_text = st.text_area(
             "Paste your Spanish drill description:",
@@ -551,8 +584,7 @@ with tab1:
         
         with col_btn1:
             if st.button("🗑️ Clear", key="clear_input", help="Clear the Spanish text"):
-                st.session_state.spanish_input_key = ""
-                save_to_local_storage('draft_spanish', '')
+                st.session_state.clear_input_flag = True
                 st.rerun()
         
         with col_btn2:
@@ -626,7 +658,7 @@ with tab1:
             if cache_key in st.session_state.translation_cache:
                 st.info("🚀 Loading from cache...")
                 cached_result = st.session_state.translation_cache[cache_key]
-                st.session_state.translated_text = cached_result['translation']
+                st.session_state.pending_translation = cached_result['translation']
                 
                 translation_entry = {
                     'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -801,6 +833,8 @@ with tab2:
                         }
                         st.session_state.translation_history.append(translation_entry)
                         
+                        time.sleep(1)
+                        
                     except Exception as e:
                         result = {
                             'source': drill['source'],
@@ -865,7 +899,7 @@ if st.session_state.translation_history:
         total_cost = 0
         for t in st.session_state.translation_history:
             if not safe_get(t, 'cached', False):
-                model_used = safe_get(t, 'model', 'claude-3-5-sonnet-20241022')
+                model_used = safe_get(t, 'model', 'claude-sonnet-4-20250514')
                 cost = calculate_estimated_cost(
                     safe_get(t, 'input_tokens', 0),
                     safe_get(t, 'output_tokens', 0),
