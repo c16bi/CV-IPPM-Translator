@@ -813,13 +813,25 @@ if st.session_state.translation_history:
     st.markdown("---")
     st.subheader("📊 Usage Statistics")
     
-    col_stat1, col_stat2, col_stat3, col_stat4, col_stat5 = st.columns(5)
+    col_stat1, col_stat2, col_stat3, col_stat4, col_stat5, col_stat6 = st.columns(6)
     
     total_translations = len(st.session_state.translation_history)
     total_input_tokens = sum(t.get('input_tokens', 0) for t in st.session_state.translation_history)
     total_output_tokens = sum(t.get('output_tokens', 0) for t in st.session_state.translation_history)
     avg_duration = sum(t.get('duration', 0) for t in st.session_state.translation_history) / total_translations if total_translations > 0 else 0
     cache_hits = sum(1 for t in st.session_state.translation_history if t.get('cached', False))
+    
+    # Calculate total cost
+    total_cost = 0
+    for t in st.session_state.translation_history:
+        if not t.get('cached', False):  # Only count non-cached translations
+            model_used = t.get('model', 'claude-3-5-sonnet-20241022')  # fallback for old entries
+            cost = calculate_estimated_cost(
+                t.get('input_tokens', 0),
+                t.get('output_tokens', 0),
+                model_used
+            )
+            total_cost += cost
     
     with col_stat1:
         st.metric("Total Translations", total_translations)
@@ -831,6 +843,20 @@ if st.session_state.translation_history:
         st.metric("Avg Duration", f"{avg_duration:.1f}s")
     with col_stat5:
         st.metric("Cache Hits", f"{cache_hits}")
+    with col_stat6:
+        st.metric("Total Cost", f"${total_cost:.4f}")
+    
+    # Model usage breakdown
+    if st.session_state.translation_history:
+        st.markdown("**Model Usage:**")
+        model_usage = {}
+        for t in st.session_state.translation_history:
+            model = t.get('model', 'Unknown')
+            model_name = CLAUDE_MODELS.get(model, model)
+            model_usage[model_name] = model_usage.get(model_name, 0) + 1
+        
+        for model, count in model_usage.items():
+            st.markdown(f"- {model}: {count} translations")
 
 # Footer with keyboard shortcuts and tips
 st.markdown("---")
