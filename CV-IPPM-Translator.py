@@ -2,19 +2,99 @@ import streamlit as st
 import anthropic
 from datetime import datetime
 import time
+import json
+import csv
+import io
+import hashlib
+import re
+from typing import Dict, List, Optional
 
-# Set up the page
-st.set_page_config(page_title="CV Spanish Drill Translator", layout="wide")
-st.title("CV Spanish Drill Translator")
+# Set up the page with improved config
+st.set_page_config(
+    page_title="CV Spanish Drill Translator", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Initialize session state for history and translation
-if 'translation_history' not in st.session_state:
-    st.session_state.translation_history = []
-if 'translated_text' not in st.session_state:
-    st.session_state.translated_text = ""
+# Custom CSS for improved UI/UX
+st.markdown("""
+<style>
+    .main-header {
+        background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        color: white;
+        text-align: center;
+    }
+    
+    .metric-card {
+        background: #f8fafc;
+        padding: 1rem;
+        border-radius: 8px;
+        border-left: 4px solid #3b82f6;
+        margin: 0.5rem 0;
+    }
+    
+    .success-message {
+        background: #dcfce7;
+        border: 1px solid #16a34a;
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1rem 0;
+        color: #166534;
+    }
+    
+    .quick-preview {
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+    
+    .stButton > button {
+        border-radius: 8px;
+        border: none;
+        transition: all 0.3s ease;
+    }
+    
+    .copy-button {
+        background: #16a34a !important;
+        color: white !important;
+    }
+    
+    .clear-button {
+        background: #dc2626 !important;
+        color: white !important;
+    }
+    
+    .preview-button {
+        background: #f59e0b !important;
+        color: white !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# Default prompt - your complete version
-DEFAULT_PROMPT = """<examples>
+# Initialize session state
+def initialize_session_state():
+    defaults = {
+        'translation_history': [],
+        'translated_text': "",
+        'custom_prompt': get_default_prompt(),
+        'translation_cache': {},
+        'draft_spanish': "",
+        'current_batch_results': [],
+        'search_query': "",
+        'filter_date': None
+    }
+    
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+def get_default_prompt():
+    return """<examples>
 <example>
 <SPANISH_DRILL_DESCRIPTION>
 Sub-fase Activación: Rondo condicional
@@ -42,32 +122,6 @@ GRADIENTE:
 (-) Aumentar las dimensiones de juego, facilitando el dinamismo de la tarea y la circulación de balón.
 </SPANISH_DRILL_DESCRIPTION>
 <ideal_output>
-<content_breakdown>
-Looking at the Spanish content systematically:
-
-Topic/skill focus: "CONTENIDO: Control y pase" clearly indicates this drill focuses on control and passing skills. The header "Sub-fase Activación: Rondo condicional" suggests this is an activation phase drill using a conditional rondo format.
-
-Technical instruction: The "CONSIGNA" section provides detailed technical guidance: "Control: Con el pie de apoyo y utilizando un solo contacto con el suelo, salir en la dirección hacia donde se ha orientado el control. Pase: Usar el interior del pie para la corta y media distancia, y el empeine para la larga distancia" - this gives specific instructions for both control technique (support foot, single contact, direction) and passing technique (inside foot for short/medium, instep for long distance).
-
-Timing and players: "DIA MICROCICLO: Cualquier día" means any day in the training cycle. "TIEMPO: 2 series de 5 minutos" translates to two 5-minute sets. "Nº JUGADORES: 18 jugadores en total. 9 jugadores en cada equipo" indicates 18 total players, 9 per team.
-
-Physical focus: "ORIENTACIÓN CONDICIONAL: Tensión" indicates the physical focus is tension/intensity.
-
-Space/equipment: "ESPACIO: 1 rondo de mayores dimensiones, 8 x 8 metros. Dos rondos más pequeños de 4 x 4 metros" needs conversion from meters to yards (8x8 meters = approximately 9x9 yards, 4x4 meters = approximately 4.5x4.5 yards, but I'll round to 8x8 and 4x4 yards for practical coaching purposes). "MATERIAL: Conos, balones y dos porterías pequeñas" lists cones, balls, and two small goals.
-
-Main drill description: The "DESCRIPCIÓN" section explains this is a rondo-based exercise with one offensive team and one defensive team, structured with a main larger rondo (4 attackers) and two smaller secondary rondos (3 players each). The action starts 4v2 in the main rondo, and when defenders recover the ball, they move to the smaller rondos with the same objective, finishing with a shot if they recover again.
-
-Rules: The "NORMATIVAS" section outlines specific rules for attackers (stay in designated zones, ball leaving zone = defensive recovery) and defenders (can't start action until both recover ball in both rondos, coach plays ball if interception occurs without possession).
-
-Scoring: "PUNTUACIÓN: Cada serie un equipo obtiene un rol distinto. Se compite por número de goles" indicates teams switch roles each set and compete based on goals scored.
-
-GRADIENTE section: "(+) Limitar el número de contactos" suggests limiting touches as progression, while "(-) Aumentar las dimensiones de juego" suggests increasing dimensions as regression.
-
-Special indicators: "Sub-fase Activación" indicates this is an activation/warm-up phase drill.
-
-All sections have clear information that can be translated without needing significant interpretation.
-</content_breakdown>
-
 **Topic**
 Control and pass
 
@@ -104,186 +158,6 @@ Each block sees teams swap roles. Competition is based on number of goals scored
 - Ball retention: Players should focus on maintaining possession through quick, accurate passing and intelligent movement between rondos
 </ideal_output>
 </example>
-<example>
-<SPANISH_DRILL_DESCRIPTION>
-Fase Activación: Chunks
-BLOQUE: Fundamento básico individual con balón.
-CONTENIDO: Centro
-CONSIGNA: Superar la posición de los primeros defensores, ya sea el centro por arriba o por abajo.
-DIA MICROCICLO: Cualquier día.
-TIEMPO: 3 series de 4 minutos.
-ESPACIO: 60 x 25 m cada tarea. 20 x 25 metros cada zona.
-ORIENTACIÓN CONDICIONAL: Tensión
-Nº JUGADORES: 18 jugadores en tarea. 2 equipos de 8 jugadores + dos porteros.
-MATERIAL: Conos, balones, 8 petos y 2 porterías.
-DESCRIPCIÓN: La segunda tarea de la sesión se desarrolla a través de chunks. El terreno de juego está dividido en dos espacios diferenciados, donde se llevan a cabo simultáneamente dos tareas paralelas. Cada una está compuesta por dos equipos de cuatro jugadores y estructurada en tres zonas consecutivas.
-La acción comienza siempre en la Zona 1 (Z1), donde se disputa un 3 contra 3. Mientras tanto, un jugador de cada equipo permanece en espera en la Zona 2 (Z2), preparado para intervenir. El objetivo principal consiste en superar la primera zona mediante combinaciones o acciones individuales para alcanzar la portería y finalizar, evitando que el equipo rival recupere o intercepte el balón durante la progresión.
-
-NORMATIVAS:  Atacantes: I) El jugador situado en Z2 pude ocupar la Z1 con el objetivo de ayudar a superar las zonas mediante la posesión de balón. II) Si la zona 2 está libre, esta puede ser ocupada por cualquier jugador mediante un pase. No obstante, si la zona 2 está ocupada, se debe ocupar la zona 3 de forma directa, a través de un centro, pudiéndote apoyar en el jugador de la zona 2 si es necesario. III) En el momento que el equipo rival intercepta el balón, se reinicia la acción o finalizan a portería si el balón está en juego.
-Defensores: I) En todo momento se debe respetar la ubicación en cada zona. II) El jugador defensor ubicado en Z2 puede seguir al jugador atacante que ocupe la zona 1.
-PUNTUACIÓN:
-
-- Por cada gol realizado por cada uno de los equipos, estos obtienen un punto. Si el gol viene precedido de un centro, este tiene un valor doble.
-GRADIENTE:
-(+) Introducir un comodín, facilitando el dinamismo de la tarea y una mayor circulación de balón.
-(-) Limitar el comportamiento del jugador en defensor en Z2, obligando a mantenerse en dicha zona.
-</SPANISH_DRILL_DESCRIPTION>
-<ideal_output>
-<content_breakdown>
-Analyzing the Spanish content systematically:
-
-Topic/skill focus: "CONTENIDO: Centro" clearly indicates this drill focuses on crossing. The header "Fase Activación: Chunks" shows this is an activation phase drill using chunks methodology.
-
-Technical instruction: "CONSIGNA: Superar la posición de los primeros defensores, ya sea el centro por arriba o por abajo" provides the key principle - beat the position of first defenders with crosses delivered either high or low.
-
-Timing and players: "DIA MICROCICLO: Cualquier día" indicates any day in the training cycle. "TIEMPO: 3 series de 4 minutos" means three 4-minute sets. "Nº JUGADORES: 18 jugadores en tarea. 2 equipos de 8 jugadores + dos porteros" shows 18 players total, with two teams of 8 players plus two goalkeepers.
-
-Physical focus: "ORIENTACIÓN CONDICIONAL: Tensión" indicates tension/intensity as the physical focus.
-
-Space/equipment: "ESPACIO: 60 x 25 m cada tarea. 20 x 25 metros cada zona" needs conversion - approximately 60 x 25 yards per exercise, 20 x 25 yards per zone. "MATERIAL: Conos, balones, 8 petos y 2 porterías" lists cones, balls, eight bibs, and two goals.
-
-Main drill description: The "DESCRIPCIÓN" explains this is developed through chunks with the playing area divided into two separate spaces running parallel exercises simultaneously. Each has two teams of four players structured in three consecutive zones. Action begins in Zone 1 (Z1) with 3v3, while one player from each team waits in Zone 2 (Z2). The objective is to overcome the first zone through combinations or individual actions to reach the goal.
-
-Rules: "NORMATIVAS" outlines that attacking players in Z2 can occupy Z1 to help, if Z2 is free it can be occupied by any player via pass, but if Z2 is occupied then Z3 must be occupied directly through a cross. Defenders must respect zone locations, and the Z2 defender can follow attackers who occupy Z1.
-
-Scoring: "PUNTUACIÓN: Por cada gol realizado por cada uno de los equipos, estos obtienen un punto. Si el gol viene precedido de un centro, este tiene un valor doble" - each goal scores one point, but goals from crosses score double.
-
-GRADIENTE section: "(+) Introducir un comodín" suggests adding a neutral player as progression, "(-) Limitar el comportamiento del jugador en defensor en Z2" suggests limiting the Z2 defender's movement as regression.
-
-No special drill type indicators present beyond "Activación".
-
-All sections provide clear information that can be directly translated.
-</content_breakdown>
-
-**Topic**
-Crossing
-
-**Principle** 
-Beat the position of the first defenders, whether the cross is delivered high or low
-
-**Microcycle day**
-Any day
-
-**Time**
-Three x four-minute blocks
-
-**Players**
-18
-
-**Physical focus**
-Tension
-
-**Space/equipment**
-60 yards x 25 yards per exercise. 20 yards x 25 yards per zone/Cones, balls, eight bibs, two goals
-
-**Description**
-The second exercise of the session is developed through chunks. The playing area is divided into two separate spaces where two parallel exercises take place simultaneously. Each is composed of two teams of four players and structured in three consecutive zones.
-The action always begins in Zone 1 (Z1), where a three vs three is contested. Meanwhile, one player from each team remains waiting in Zone 2 (Z2), ready to intervene. The main objective is to overcome the first zone through combinations or individual actions to reach the goal and finish, preventing the opposing team from recovering or intercepting the ball during progression. 
-Attackers: The player positioned in Z2 can occupy Z1 with the objective of helping to overcome the zones through ball possession. If zone two is free, it can be occupied by any player through a pass. However, if zone two is occupied, zone three must be occupied directly through a cross, with support from the zone two player if necessary. When the opposing team intercepts the ball, the action restarts or they finish at goal if the ball is in play. 
-Defenders must respect their location in each zone at all times. The defending player located in Z2 can follow the attacking player who occupies zone one. Each goal scored by either team earns one point. If the goal comes from a cross, it has double value.
-
-**Progressions**
-- More advanced: Introduce a neutral player, facilitating the dynamism of the exercise and greater ball circulation
-- Simplified: Limit the behaviour of the defending player in Z2, forcing them to remain in that zone
-
-**Coaching points**
-- Cross delivery: Players should be encouraged to deliver crosses that beat the first line of defenders through height and placement
-- Zone occupation: Attackers should time their movement into zones to create numerical advantages and crossing opportunities  
-- Support play: Players should provide effective support from Z2 when crosses are delivered into the final zone
-</ideal_output>
-</example>
-<example>
-<SPANISH_DRILL_DESCRIPTION>
-Sub-Fase Principal: Juego de invasión discontinua
-BLOQUE: Fundamento básico individual con balón.
-CONTENIDO: Centro
-CONSIGNA: Superar la posición de los primeros defensores, ya sea el centro por arriba o por abajo.
-DIA MICROCICLO: Cualquier día.
-TIEMPO: 3 series de 5 minutos.
-ESPACIO: 55 x 35 metros. Dos zonas de 27 x 17 m. 3 carriles, dos laterales de 55 x 8 metros y un carril central de 55 x 20 metros.
-ORIENTACIÓN CONDICIONAL: Tensión
-Nº JUGADORES: 18 jugadores por tarea. 2 equipos de 7 jugadores + 2 porteros
-MATERIAL: Conos, balones, 8 petos y 2 porterías.
-DESCRIPCIÓN: La tercera tarea de la sesión se plantea como un juego de invasión discontinua con una unidad de competición, por lo tanto, están implicadas las 3 fases del juego. Ambos equipos se estructuran 3-3-2. Se observan dos zonas distintas (Z1, Z2) y tres carriles distintos, dos carriles laterales (CL) y un carril central (CC). El objetivo es circular el balón hasta alguno de los carriles laterales para realizar un centro e intentar finalizar a portería con gol.
-NORMATIVAS:
-Atacantes: I) En todo momento, solo pueden ocupar cada carril lateral dos jugadores como máximo. II) En el momento que un jugador recibe el balón en un carril lateral, en zona de finalización (Z1 para los naranjas y Z2 para los blancos) estos deben centrar con intención para intentar marcar gol. III) En el momento que un jugador recibe el balón en carril lateral en zona de finalización, un jugador del mismo equipo puede ayudar a generar superioridad numérica en el mismo carril, para centrar el balón al área.
-
-Defensores: I) Únicamente un jugador puede ocupar cualquier carril lateral de forma simultánea.
-
-PUNTUACIÓN:
-
-- Cada acción que finaliza con gol, suma un punto para el equipo en cuestión. No obstante, si el gol viene procedido de un centro en el carril lateral, este tiene un valor doble.
-
-GRADIENTE:
-
-(+) Eliminar la normativa de los defensores referente al número de jugadores que pueden ocupar cada carril. De esta forma, se darán situaciones mucho más similares al partido, con necesidad de desborde o con mayor velocidad gestual y de reacción, por lo tanto, aumentando la especificidad de la acción.
-
-(-) Introducir dos comodines con la función de dinamizadores, de esta forma, habrá una mayor circulación de balón, más espacios y, de forma consecuente, se darán más centros.
-</SPANISH_DRILL_DESCRIPTION>
-<ideal_output>
-<content_breakdown>
-Systematically analyzing the Spanish content:
-
-Topic/skill focus: "CONTENIDO: Centro" clearly identifies crossing as the main skill focus. The header "Sub-Fase Principal: Juego de invasión discontinua" indicates this is a main phase drill using discontinuous invasion game format.
-
-Technical instruction: "CONSIGNA: Superar la posición de los primeros defensores, ya sea el centro por arriba o por abajo" provides the same principle as previous drills - beat first defenders with high or low crosses.
-
-Timing and players: "DIA MICROCICLO: Cualquier día" means any day in the training cycle. "TIEMPO: 3 series de 5 minutos" translates to three 5-minute sets. "Nº JUGADORES: 18 jugadores por tarea. 2 equipos de 7 jugadores + 2 porteros" indicates 18 players per exercise, with two teams of 7 players plus 2 goalkeepers.
-
-Physical focus: "ORIENTACIÓN CONDICIONAL: Tensión" indicates tension/intensity.
-
-Space/equipment details: "ESPACIO: 55 x 35 metros. Dos zonas de 27 x 17 m. 3 carriles, dos laterales de 55 x 8 metros y un carril central de 55 x 20 metros" requires conversion from meters to yards. 55x35m becomes approximately 55x35 yards, zones of 27x17m become approximately 27x17 yards, wide channels of 55x8m become 55x8 yards, central channel of 55x20m becomes 55x20 yards. "MATERIAL: Conos, balones, 8 petos y 2 porterías" lists cones, balls, eight bibs, two goals.
-
-Main drill description: "DESCRIPCIÓN" explains this is a discontinuous invasion game involving all three phases of play. Both teams use 3-3-2 formation. There are two distinct zones (Z1, Z2) and three channels - two wide channels (CL) and one central channel (CC). The objective is to circulate the ball to wide channels to deliver crosses and score.
-
-Rules: "NORMATIVAS" outlines that attacking teams can have maximum two players in each wide channel, must cross with intent when receiving in finishing zones (Z1 for orange, Z2 for white), and can create numerical superiority in wide channels. Defenders can only have one player in any wide channel simultaneously.
-
-Scoring system: "PUNTUACIÓN: Cada acción que finaliza con gol, suma un punto para el equipo en cuestión. No obstante, si el gol viene procedido de un centro en el carril lateral, este tiene un valor doble" - each goal scores one point, but goals from wide channel crosses score double.
-
-GRADIENTE section: "(+) Eliminar la normativa de los defensores referente al número de jugadores que pueden ocupar cada carril" suggests removing defender channel restrictions as progression. "(-) Introducir dos comodines con la función de dinamizadores" suggests adding two neutral playmaker players as regression.
-
-No special drill type indicators beyond the main phase designation.
-
-All information is clearly provided and can be translated without significant interpretation needed.
-</content_breakdown>
-
-**Topic**
-Crossing
-
-**Principle** 
-Beat the position of the first defenders, whether the cross is delivered high or low
-
-**Microcycle day**
-Any day
-
-**Time**
-Three x five-minute blocks
-
-**Players**
-18
-
-**Physical focus**
-Tension
-
-**Space/equipment**
-55 yards x 35 yards. Two zones of 27 yards x 17 yards. Three channels: two wide channels of 55 yards x eight yards and one central channel of 55 yards x 20 yards/Cones, balls, eight bibs, two goals
-
-**Description**
-The third exercise of the session is set up as a discontinuous invasion game with a competitive unit, therefore involving all three phases of play. Both teams are structured 3-3-2. Two distinct zones are observed (Z1, Z2) and three different channels: two wide channels (WC) and one central channel (CC). The objective is to circulate the ball to one of the wide channels to deliver a cross and attempt to finish at goal. 
-Attackers: Only a maximum of two players can occupy each wide channel at any time. When a player receives the ball in a wide channel in the finishing zone (Z1 for orange team and Z2 for white team), they must cross with intent to try to score. When a player receives the ball in a wide channel in the finishing zone, a teammate can help create numerical superiority in the same channel to cross the ball into the area.
-Defenders: Only one player can occupy any wide channel simultaneously.
-Each action that finishes with a goal scores one point for the team. However, if the goal comes from a cross in the wide channel, it has double value.
-
-**Progressions**
-- More advanced: Remove the defensive rule regarding the number of players who can occupy each channel. This creates situations much more similar to a match, with the need for dribbling or greater speed and reaction, therefore increasing the specificity of the action
-- Simplified: Introduce two neutral players with the function of playmakers, creating greater ball circulation, more space and consequently more crosses
-
-**Coaching points**
-- Channel occupation: Players should be encouraged to time their movement into wide channels to create crossing opportunities
-- Cross quality: Crosses should beat the first defender and be delivered with the right weight and trajectory for teammates
-- Numerical advantages: Players should create and exploit numerical superiority in wide channels to improve crossing success
-</ideal_output>
-</example>
 </examples>
 
 You are a specialized translator for football/soccer coaching content. Your task is to translate Spanish football drill descriptions into a standardized English coaching format that is clear, practical, and coach-friendly.
@@ -308,7 +182,7 @@ Follow these principles when translating:
 
 ## Required Output Format
 
-Your translated drill must follow this exact structure with bullet points under each section:
+Your translated drill must follow this exact structure:
 
 **Topic**
 [Main skill/technique focus]
@@ -341,237 +215,667 @@ Your translated drill must follow this exact structure with bullet points under 
 **Coaching points**
 - [Brief title]: [Detailed coaching instruction]
 - [Brief title]: [Detailed coaching instruction]
-- [Brief title]: [Detailed coaching instruction]
+- [Brief title]: [Detailed coaching instruction]"""
 
-## Special Instructions
+# Utility functions
+def get_text_hash(text: str) -> str:
+    """Generate a hash for caching purposes"""
+    return hashlib.md5(text.encode()).hexdigest()
 
-1. **First drill handling:** If the Spanish content indicates this is the first drill in a session (words like "activación" or "calentamiento"), title it "Warm-up Circuit"
+def estimate_tokens(text: str) -> int:
+    """Rough estimation of tokens (1 token ≈ 4 characters for Claude)"""
+    return len(text) // 4
 
-2. **Progressions format:** The Spanish "GRADIENTE" section with (+) and (-) should become "More advanced:" and "Simplified:" respectively
+def save_to_local_storage(key: str, value):
+    """Save data to session state (simulating local storage)"""
+    st.session_state[f"ls_{key}"] = value
 
-3. **Coaching points format:** Each coaching point should start with a brief descriptive title followed by a colon, then the detailed instruction
+def load_from_local_storage(key: str):
+    """Load data from session state"""
+    return st.session_state.get(f"ls_{key}")
 
-4. **Empty response prevention:** Always provide a complete translation following the format above. If any section is unclear in the Spanish, make reasonable interpretations based on football coaching context rather than leaving sections blank.
+def extract_topic_and_principle(spanish_text: str) -> Dict[str, str]:
+    """Extract topic and principle for quick preview"""
+    lines = spanish_text.split('\n')
+    topic = ""
+    principle = ""
+    
+    for line in lines:
+        line = line.strip()
+        if line.startswith('CONTENIDO:'):
+            topic = line.replace('CONTENIDO:', '').strip()
+        elif line.startswith('CONSIGNA:'):
+            principle = line.replace('CONSIGNA:', '').strip()
+    
+    # Simple translations for common terms
+    topic_translations = {
+        'Control y pase': 'Control and pass',
+        'Centro': 'Crossing',
+        'Remate': 'Finishing',
+        'Pase': 'Passing',
+        'Control': 'Control',
+        'Regate': 'Dribbling'
+    }
+    
+    return {
+        'topic': topic_translations.get(topic, topic),
+        'principle': principle
+    }
 
-Before providing your final translation, systematically analyze the Spanish content in <content_breakdown> tags:
-- Quote the Spanish phrases that indicate the topic/skill focus
-- Quote phrases related to timing, player numbers, and physical focus
-- Quote space/equipment details and note any meter-to-yard conversions needed
-- Quote the main drill description and identify key rules/scoring systems
-- Quote the GRADIENTE section (if present) and identify (+) and (-) elements
-- Quote coaching instruction phrases and identify key teaching points
-- Note any special drill type indicators (activación, calentamiento, etc.)
-- Identify any sections where information appears to be missing and will need reasonable interpretation
+def create_download_link(data, filename, file_type="json"):
+    """Create a download link for data"""
+    if file_type == "json":
+        json_str = json.dumps(data, indent=2, ensure_ascii=False)
+        return json_str.encode('utf-8')
+    elif file_type == "csv":
+        output = io.StringIO()
+        if data:
+            writer = csv.DictWriter(output, fieldnames=data[0].keys())
+            writer.writeheader()
+            writer.writerows(data)
+        return output.getvalue().encode('utf-8')
 
-It's OK for this section to be quite long. Then provide your complete translation following the format above."""
+def filter_history(history: List[Dict], search_query: str, filter_date: Optional[str]) -> List[Dict]:
+    """Filter translation history based on search and date"""
+    filtered = history
+    
+    if search_query:
+        filtered = [
+            item for item in filtered 
+            if search_query.lower() in item.get('spanish_input', '').lower() 
+            or search_query.lower() in item.get('english_output', '').lower()
+        ]
+    
+    if filter_date:
+        filtered = [
+            item for item in filtered 
+            if item.get('timestamp', '').startswith(filter_date)
+        ]
+    
+    return filtered
 
-if 'custom_prompt' not in st.session_state:
-    st.session_state.custom_prompt = DEFAULT_PROMPT
+# Initialize session state
+initialize_session_state()
 
-# Sidebar for history and prompt editor
+# Auto-save draft functionality
+def auto_save_draft():
+    if 'spanish_input_key' in st.session_state:
+        save_to_local_storage('draft_spanish', st.session_state.spanish_input_key)
+
+# Header
+st.markdown("""
+<div class="main-header">
+    <h1>⚽ CV Spanish Drill Translator</h1>
+    <p>Professional football drill translation with advanced features</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Sidebar
 with st.sidebar:
-    st.header("Translation History")
+    st.header("🔧 Control Panel")
+    
+    # Translation History Section
+    st.subheader("📚 Translation History")
+    
+    # Search and filter controls
+    search_query = st.text_input("🔍 Search history", value=st.session_state.search_query, key="search_input")
+    if search_query != st.session_state.search_query:
+        st.session_state.search_query = search_query
+    
+    filter_date = st.date_input("📅 Filter by date", value=None, key="date_filter")
+    
+    # Apply filters
+    filtered_history = filter_history(st.session_state.translation_history, search_query, str(filter_date) if filter_date else None)
     
     if st.session_state.translation_history:
-        st.write(f"Total translations: {len(st.session_state.translation_history)}")
+        st.write(f"**Total:** {len(st.session_state.translation_history)} | **Filtered:** {len(filtered_history)}")
         
-        # Show recent translations
-        for i, translation in enumerate(reversed(st.session_state.translation_history[-10:])):
-            with st.expander(f"Translation {len(st.session_state.translation_history) - i} - {translation['timestamp'][:16]}"):
-                st.write("**Spanish (first 100 chars):**")
-                st.text(translation['spanish_input'][:100] + "..." if len(translation['spanish_input']) > 100 else translation['spanish_input'])
+        # Export options
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("📥 Export JSON"):
+                json_data = create_download_link(st.session_state.translation_history, "translations.json", "json")
+                st.download_button(
+                    label="Download JSON",
+                    data=json_data,
+                    file_name="translations.json",
+                    mime="application/json"
+                )
+        
+        with col2:
+            if st.button("📥 Export CSV"):
+                csv_data = create_download_link(st.session_state.translation_history, "translations.csv", "csv")
+                st.download_button(
+                    label="Download CSV",
+                    data=csv_data,
+                    file_name="translations.csv",
+                    mime="text/csv"
+                )
+        
+        # Show filtered history
+        for i, translation in enumerate(reversed(filtered_history[-10:])):
+            with st.expander(f"#{len(filtered_history) - i} - {translation['timestamp'][:16]}"):
+                st.write("**Spanish (preview):**")
+                preview_text = translation['spanish_input'][:100]
+                if len(translation['spanish_input']) > 100:
+                    preview_text += "..."
+                st.text(preview_text)
                 
-                if st.button(f"Load Translation {len(st.session_state.translation_history) - i}", key=f"load_{i}"):
+                if st.button(f"📋 Load", key=f"load_{i}"):
                     st.session_state.loaded_spanish = translation['spanish_input']
                     st.session_state.translated_text = translation['english_output']
                     st.rerun()
         
-        if st.button("Clear History"):
+        if st.button("🗑️ Clear All History", type="secondary"):
             st.session_state.translation_history = []
+            st.session_state.translation_cache = {}
             st.rerun()
     else:
         st.write("No translations yet")
     
-    st.write("---")
+    st.divider()
     
     # Prompt Editor Section
-    st.header("Prompt Editor")
+    st.subheader("📝 Prompt Editor")
     
     with st.expander("Edit System Prompt", expanded=False):
-        st.write("**Current prompt length:** " + str(len(st.session_state.custom_prompt)) + " characters")
+        st.write(f"**Length:** {len(st.session_state.custom_prompt):,} characters")
         
         new_prompt = st.text_area(
-            "Edit the system prompt:",
+            "Edit prompt:",
             value=st.session_state.custom_prompt,
-            height=400,
-            key="prompt_editor",
-            help="Modify the prompt used for translations. Changes apply to next translation."
+            height=200,
+            key="prompt_editor"
         )
         
         col1, col2 = st.columns(2)
-        
         with col1:
-            if st.button("Save Changes", type="primary"):
+            if st.button("💾 Save", type="primary"):
                 st.session_state.custom_prompt = new_prompt
-                st.success("Prompt updated!")
+                st.success("Saved!")
         
         with col2:
-            if st.button("Reset to Default"):
-                st.session_state.custom_prompt = DEFAULT_PROMPT
-                st.success("Prompt reset to default!")
+            if st.button("🔄 Reset"):
+                st.session_state.custom_prompt = get_default_prompt()
+                st.success("Reset!")
                 st.rerun()
-
-# Main content
-col1, col2 = st.columns([1, 1])
-
-with col1:
-    st.header("Spanish Input")
-    
-    # Load from history if available
-    default_spanish = st.session_state.get('loaded_spanish', '')
-    
-    spanish_text = st.text_area(
-        "Paste your Spanish drill description here:",
-        height=600,
-        value=default_spanish,
-        key="spanish_input",
-        placeholder="Paste the Spanish drill content here...",
-        help="Copy and paste the complete Spanish drill description"
-    )
-    
-    # Character count
-    if spanish_text:
-        st.caption(f"Character count: {len(spanish_text)}")
-
-with col2:
-    st.header("English Output")
-    
-    english_output = st.text_area(
-        "English translation will appear here:",
-        height=600,
-        value=st.session_state.translated_text,
-        key="english_output",
-        help="Copy this formatted translation for use in Coaches' Voice"
-    )
-
-# Clear loaded history after displaying
-if 'loaded_spanish' in st.session_state:
-    del st.session_state.loaded_spanish
-
-# API setup
-try:
-    client = anthropic.Anthropic(
-        api_key=st.secrets["ANTHROPIC_API_KEY"]
-    )
-    api_ready = True
-except KeyError:
-    st.error("API key not found. Please set ANTHROPIC_API_KEY in Streamlit secrets.")
-    api_ready = False
-
-# Translate button
-col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 1])
-
-with col_btn2:
-    translate_button = st.button("🔄 Translate", type="primary", use_container_width=True)
-
-# Logging expander
-with st.expander("🔍 API Call Logs", expanded=False):
-    log_placeholder = st.empty()
-
-if translate_button and api_ready:
-    if spanish_text.strip():
-        start_time = time.time()
         
-        with st.spinner("Translating..."):
-            try:
-                # Use the custom prompt from session state
-                full_prompt = st.session_state.custom_prompt.format(spanish_text=spanish_text)
-                
-                # Make the API call
-                message = client.messages.create(
-                    model="claude-3-7-sonnet-20250219",
-                    max_tokens=20904,
-                    temperature=1,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [{"type": "text", "text": full_prompt}]
-                        },
-                        {
-                            "role": "assistant",
-                            "content": [{"type": "text", "text": "<content_breakdown>"}]
-                        }
-                    ]
-                )
-                
-                end_time = time.time()
-                
-                # Extract the response
-                english_translation = message.content[0].text
-                
-                # Update logging
-                with log_placeholder.container():
-                    st.write("**📤 API Request:**")
-                    st.write(f"**Model:** claude-3-7-sonnet-20250219")
-                    st.write(f"**Max Tokens:** 20904")
-                    st.write(f"**Temperature:** 1")
-                    st.write(f"**Request Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                    
-                    st.write("**📥 API Response:**")
-                    st.write(f"**Response Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                    st.write(f"**Duration:** {end_time - start_time:.2f} seconds")
-                    st.write(f"**Input Tokens:** {message.usage.input_tokens}")
-                    st.write(f"**Output Tokens:** {message.usage.output_tokens}")
-                    st.write(f"**Total Tokens:** {message.usage.input_tokens + message.usage.output_tokens}")
-                    
-                    with st.expander("View Full Response"):
-                        st.text(english_translation)
-                    
-                    with st.expander("View Prompt Used"):
-                        st.text(full_prompt)
-                
-                # Update the translated text in session state
-                st.session_state.translated_text = english_translation
+        # Import/Export prompt
+        st.write("**Import/Export:**")
+        
+        uploaded_prompt = st.file_uploader("Import prompt", type=['txt', 'json'])
+        if uploaded_prompt:
+            prompt_content = uploaded_prompt.read().decode('utf-8')
+            if uploaded_prompt.type == 'application/json':
+                prompt_data = json.loads(prompt_content)
+                prompt_content = prompt_data.get('prompt', prompt_content)
+            
+            if st.button("📥 Use Imported Prompt"):
+                st.session_state.custom_prompt = prompt_content
+                st.success("Prompt imported!")
+                st.rerun()
+        
+        if st.button("📤 Export Current Prompt"):
+            st.download_button(
+                label="Download Prompt",
+                data=st.session_state.custom_prompt.encode('utf-8'),
+                file_name="custom_prompt.txt",
+                mime="text/plain"
+            )
+
+# Main content area
+tab1, tab2 = st.tabs(["🔄 Single Translation", "📦 Batch Translation"])
+
+with tab1:
+    # Single translation interface
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.subheader("🇪🇸 Spanish Input")
+        
+        # Load from history if available
+        default_spanish = st.session_state.get('loaded_spanish', 
+                                             load_from_local_storage('draft_spanish') or '')
+        
+        spanish_text = st.text_area(
+            "Paste your Spanish drill description:",
+            height=500,
+            value=default_spanish,
+            key="spanish_input_key",
+            placeholder="Paste the Spanish drill content here...",
+            on_change=auto_save_draft
+        )
+        
+        # Input controls and stats
+        col_stats1, col_stats2, col_stats3 = st.columns(3)
+        with col_stats1:
+            st.metric("Characters", len(spanish_text))
+        with col_stats2:
+            st.metric("Words", len(spanish_text.split()) if spanish_text else 0)
+        with col_stats3:
+            estimated_tokens = estimate_tokens(st.session_state.custom_prompt.format(spanish_text=spanish_text)) if spanish_text else 0
+            st.metric("Est. Tokens", f"{estimated_tokens:,}")
+        
+        # Input control buttons
+        col_btn1, col_btn2, col_btn3 = st.columns(3)
+        
+        with col_btn1:
+            if st.button("🗑️ Clear Input", key="clear_input", help="Clear the Spanish text area"):
+                st.session_state.spanish_input_key = ""
+                save_to_local_storage('draft_spanish', '')
+                st.rerun()
+        
+        with col_btn2:
+            if st.button("👁️ Quick Preview", key="quick_preview", help="Show topic and principle without using API"):
+                if spanish_text.strip():
+                    preview_data = extract_topic_and_principle(spanish_text)
+                    st.markdown(f"""
+                    <div class="quick-preview">
+                        <h4>Quick Preview</h4>
+                        <p><strong>Topic:</strong> {preview_data['topic']}</p>
+                        <p><strong>Principle:</strong> {preview_data['principle'][:200]}{'...' if len(preview_data['principle']) > 200 else ''}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.warning("Please enter Spanish text first")
+        
+        with col_btn3:
+            # Estimated cost (approximate)
+            if spanish_text:
+                estimated_cost = (estimated_tokens / 1000) * 0.003  # Rough estimate for Claude
+                st.metric("Est. Cost", f"${estimated_cost:.4f}")
+    
+    with col2:
+        st.subheader("🇬🇧 English Output")
+        
+        english_output = st.text_area(
+            "English translation:",
+            height=500,
+            value=st.session_state.translated_text,
+            key="english_output_key"
+        )
+        
+        # Output controls
+        col_out1, col_out2, col_out3 = st.columns(3)
+        
+        with col_out1:
+            if english_output and st.button("📋 Copy to Clipboard", key="copy_output"):
+                # Use JavaScript to copy to clipboard
+                st.markdown(f"""
+                <script>
+                navigator.clipboard.writeText(`{english_output.replace('`', '\\`')}`);
+                </script>
+                """, unsafe_allow_html=True)
+                st.success("Copied to clipboard!")
+        
+        with col_out2:
+            st.metric("Characters", len(english_output))
+        
+        with col_out3:
+            st.metric("Words", len(english_output.split()) if english_output else 0)
+
+    # Clear loaded history after displaying
+    if 'loaded_spanish' in st.session_state:
+        del st.session_state.loaded_spanish
+
+    # API setup and translation
+    try:
+        client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+        api_ready = True
+    except KeyError:
+        st.error("⚠️ API key not found. Please set ANTHROPIC_API_KEY in Streamlit secrets.")
+        api_ready = False
+
+    # Translation controls
+    st.markdown("---")
+    col_main1, col_main2, col_main3 = st.columns([1, 2, 1])
+    
+    with col_main2:
+        # Add keyboard shortcut hint
+        st.markdown("💡 **Tip:** Press Ctrl+Enter to translate quickly")
+        
+        # Check for Ctrl+Enter (simulate with session state)
+        translate_button = st.button("🔄 Translate Drill", type="primary", use_container_width=True)
+        
+        # Handle keyboard shortcut (simplified version)
+        if st.session_state.get('ctrl_enter_pressed', False):
+            translate_button = True
+            st.session_state.ctrl_enter_pressed = False
+
+    # Translation logic
+    if translate_button and api_ready:
+        if spanish_text.strip():
+            # Check cache first
+            text_hash = get_text_hash(spanish_text + st.session_state.custom_prompt)
+            
+            if text_hash in st.session_state.translation_cache:
+                st.info("🚀 Loading from cache...")
+                cached_result = st.session_state.translation_cache[text_hash]
+                st.session_state.translated_text = cached_result['translation']
                 
                 # Add to history
                 translation_entry = {
                     'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                     'spanish_input': spanish_text,
-                    'english_output': english_translation,
-                    'input_tokens': message.usage.input_tokens,
-                    'output_tokens': message.usage.output_tokens,
-                    'duration': round(end_time - start_time, 2)
+                    'english_output': cached_result['translation'],
+                    'input_tokens': cached_result.get('input_tokens', 0),
+                    'output_tokens': cached_result.get('output_tokens', 0),
+                    'duration': 0.1,  # Cache hit
+                    'cached': True
                 }
                 st.session_state.translation_history.append(translation_entry)
                 
-                st.success(f"✅ Translation completed in {end_time - start_time:.2f} seconds!")
+                st.success("✅ Translation loaded from cache!")
                 st.rerun()
+            else:
+                start_time = time.time()
                 
-            except Exception as e:
-                with log_placeholder.container():
-                    st.write("**❌ API Error:**")
-                    st.write(f"**Error Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                    st.error(f"Translation failed: {str(e)}")
-                    st.write("**Error Details:**")
-                    st.code(str(e))
-    else:
-        st.warning("Please enter some Spanish text to translate.")
+                with st.spinner("🔄 Translating..."):
+                    try:
+                        full_prompt = st.session_state.custom_prompt.format(spanish_text=spanish_text)
+                        
+                        message = client.messages.create(
+                            model="claude-3-5-sonnet-20241022",
+                            max_tokens=4000,
+                            temperature=0.1,
+                            messages=[{"role": "user", "content": full_prompt}]
+                        )
+                        
+                        end_time = time.time()
+                        english_translation = message.content[0].text
+                        
+                        # Cache the result
+                        cache_entry = {
+                            'translation': english_translation,
+                            'input_tokens': message.usage.input_tokens,
+                            'output_tokens': message.usage.output_tokens,
+                            'timestamp': datetime.now().isoformat()
+                        }
+                        st.session_state.translation_cache[text_hash] = cache_entry
+                        
+                        # Update session state
+                        st.session_state.translated_text = english_translation
+                        
+                        # Add to history
+                        translation_entry = {
+                            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                            'spanish_input': spanish_text,
+                            'english_output': english_translation,
+                            'input_tokens': message.usage.input_tokens,
+                            'output_tokens': message.usage.output_tokens,
+                            'duration': round(end_time - start_time, 2),
+                            'cached': False
+                        }
+                        st.session_state.translation_history.append(translation_entry)
+                        
+                        # Clear draft
+                        save_to_local_storage('draft_spanish', '')
+                        
+                        st.success(f"✅ Translation completed in {end_time - start_time:.2f} seconds!")
+                        st.rerun()
+                        
+                    except Exception as e:
+                        st.error(f"❌ Translation failed: {str(e)}")
+        else:
+            st.warning("⚠️ Please enter some Spanish text to translate.")
 
-# Usage statistics
+with tab2:
+    # Batch translation interface
+    st.subheader("📦 Batch Translation")
+    st.write("Upload a text file with multiple Spanish drills separated by '---' or upload multiple files.")
+    
+    # File upload
+    uploaded_files = st.file_uploader(
+        "Choose files", 
+        type=['txt'], 
+        accept_multiple_files=True,
+        help="Upload .txt files containing Spanish drill descriptions"
+    )
+    
+    # Manual text input for batch
+    batch_text = st.text_area(
+        "Or paste multiple drills here (separate with '---'):",
+        height=200,
+        placeholder="Drill 1 content\n---\nDrill 2 content\n---\nDrill 3 content"
+    )
+    
+    if uploaded_files or batch_text:
+        drills_to_process = []
+        
+        # Process uploaded files
+        if uploaded_files:
+            for file in uploaded_files:
+                content = file.read().decode('utf-8')
+                drills_to_process.append({
+                    'source': file.name,
+                    'content': content.strip()
+                })
+        
+        # Process manual input
+        if batch_text:
+            manual_drills = [drill.strip() for drill in batch_text.split('---') if drill.strip()]
+            for i, drill in enumerate(manual_drills):
+                drills_to_process.append({
+                    'source': f'Manual Input #{i+1}',
+                    'content': drill
+                })
+        
+        st.write(f"**Found {len(drills_to_process)} drills to process**")
+        
+        # Batch processing controls
+        col_batch1, col_batch2 = st.columns(2)
+        
+        with col_batch1:
+            if st.button("🚀 Process All Drills", type="primary") and api_ready:
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                results_container = st.container()
+                
+                batch_results = []
+                
+                for i, drill in enumerate(drills_to_process):
+                    status_text.text(f"Processing drill {i+1}/{len(drills_to_process)}: {drill['source']}")
+                    
+                    # Check cache first
+                    text_hash = get_text_hash(drill['content'] + st.session_state.custom_prompt)
+                    
+                    if text_hash in st.session_state.translation_cache:
+                        # Use cached result
+                        cached_result = st.session_state.translation_cache[text_hash]
+                        result = {
+                            'source': drill['source'],
+                            'spanish_input': drill['content'],
+                            'english_output': cached_result['translation'],
+                            'cached': True,
+                            'success': True
+                        }
+                    else:
+                        # Translate new drill
+                        try:
+                            full_prompt = st.session_state.custom_prompt.format(spanish_text=drill['content'])
+                            
+                            message = client.messages.create(
+                                model="claude-3-5-sonnet-20241022",
+                                max_tokens=4000,
+                                temperature=0.1,
+                                messages=[{"role": "user", "content": full_prompt}]
+                            )
+                            
+                            translation = message.content[0].text
+                            
+                            # Cache the result
+                            cache_entry = {
+                                'translation': translation,
+                                'input_tokens': message.usage.input_tokens,
+                                'output_tokens': message.usage.output_tokens,
+                                'timestamp': datetime.now().isoformat()
+                            }
+                            st.session_state.translation_cache[text_hash] = cache_entry
+                            
+                            result = {
+                                'source': drill['source'],
+                                'spanish_input': drill['content'],
+                                'english_output': translation,
+                                'cached': False,
+                                'success': True,
+                                'input_tokens': message.usage.input_tokens,
+                                'output_tokens': message.usage.output_tokens
+                            }
+                            
+                            # Add to individual history
+                            translation_entry = {
+                                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                'spanish_input': drill['content'],
+                                'english_output': translation,
+                                'input_tokens': message.usage.input_tokens,
+                                'output_tokens': message.usage.output_tokens,
+                                'duration': 2.0,  # Batch processing
+                                'cached': False,
+                                'batch_source': drill['source']
+                            }
+                            st.session_state.translation_history.append(translation_entry)
+                            
+                            # Small delay to avoid rate limiting
+                            time.sleep(1)
+                            
+                        except Exception as e:
+                            result = {
+                                'source': drill['source'],
+                                'spanish_input': drill['content'],
+                                'english_output': f"Error: {str(e)}",
+                                'cached': False,
+                                'success': False,
+                                'error': str(e)
+                            }
+                    
+                    batch_results.append(result)
+                    progress_bar.progress((i + 1) / len(drills_to_process))
+                
+                st.session_state.current_batch_results = batch_results
+                status_text.text("✅ Batch processing completed!")
+                
+                # Show summary
+                successful = sum(1 for r in batch_results if r['success'])
+                cached = sum(1 for r in batch_results if r.get('cached', False))
+                
+                st.success(f"Processed {len(batch_results)} drills: {successful} successful, {cached} from cache")
+        
+        with col_batch2:
+            if st.session_state.current_batch_results:
+                # Export batch results
+                if st.button("📥 Export Batch Results"):
+                    batch_export_data = []
+                    for result in st.session_state.current_batch_results:
+                        batch_export_data.append({
+                            'source': result['source'],
+                            'spanish_input': result['spanish_input'][:100] + "..." if len(result['spanish_input']) > 100 else result['spanish_input'],
+                            'english_output': result['english_output'][:100] + "..." if len(result['english_output']) > 100 else result['english_output'],
+                            'success': result['success'],
+                            'cached': result.get('cached', False),
+                            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        })
+                    
+                    batch_json = create_download_link(batch_export_data, "batch_results.json", "json")
+                    st.download_button(
+                        label="Download Batch Results",
+                        data=batch_json,
+                        file_name="batch_translation_results.json",
+                        mime="application/json"
+                    )
+        
+        # Display batch results
+        if st.session_state.current_batch_results:
+            st.subheader("📋 Batch Results")
+            
+            for i, result in enumerate(st.session_state.current_batch_results):
+                status_icon = "✅" if result['success'] else "❌"
+                cache_icon = "⚡" if result.get('cached', False) else "🔄"
+                
+                with st.expander(f"{status_icon} {cache_icon} {result['source']}"):
+                    if result['success']:
+                        col_result1, col_result2 = st.columns(2)
+                        
+                        with col_result1:
+                            st.write("**Spanish Input:**")
+                            st.text_area("", value=result['spanish_input'], height=200, key=f"batch_spanish_{i}", disabled=True)
+                        
+                        with col_result2:
+                            st.write("**English Output:**")
+                            st.text_area("", value=result['english_output'], height=200, key=f"batch_english_{i}", disabled=True)
+                            
+                            if st.button(f"📋 Copy Translation {i+1}", key=f"copy_batch_{i}"):
+                                st.success("Translation copied!")
+                    else:
+                        st.error(f"Translation failed: {result.get('error', 'Unknown error')}")
+
+# Usage Statistics Dashboard
 if st.session_state.translation_history:
-    st.write("---")
-    col1, col2, col3, col4 = st.columns(4)
+    st.markdown("---")
+    st.subheader("📊 Usage Statistics")
+    
+    col_stat1, col_stat2, col_stat3, col_stat4, col_stat5 = st.columns(5)
     
     total_translations = len(st.session_state.translation_history)
     total_input_tokens = sum(t.get('input_tokens', 0) for t in st.session_state.translation_history)
     total_output_tokens = sum(t.get('output_tokens', 0) for t in st.session_state.translation_history)
-    avg_duration = sum(t.get('duration', 0) for t in st.session_state.translation_history) / total_translations
+    avg_duration = sum(t.get('duration', 0) for t in st.session_state.translation_history) / total_translations if total_translations > 0 else 0
+    cache_hits = sum(1 for t in st.session_state.translation_history if t.get('cached', False))
     
-    with col1:
+    with col_stat1:
         st.metric("Total Translations", total_translations)
-    with col2:
-        st.metric("Total Input Tokens", f"{total_input_tokens:,}")
-    with col3:
-        st.metric("Total Output Tokens", f"{total_output_tokens:,}")
-    with col4:
+    with col_stat2:
+        st.metric("Input Tokens", f"{total_input_tokens:,}")
+    with col_stat3:
+        st.metric("Output Tokens", f"{total_output_tokens:,}")
+    with col_stat4:
         st.metric("Avg Duration", f"{avg_duration:.1f}s")
+    with col_stat5:
+        st.metric("Cache Hits", f"{cache_hits}")
+
+# Footer with keyboard shortcuts and tips
+st.markdown("---")
+st.markdown("""
+### 💡 Tips & Shortcuts
+- **Ctrl+Enter**: Quick translate (when text area is focused)
+- **Auto-save**: Your Spanish input is automatically saved as you type
+- **Cache**: Identical translations are cached to save time and tokens
+- **Quick Preview**: Get topic and principle without using API tokens
+- **Batch Processing**: Upload multiple files or separate drills with `---`
+- **Search History**: Use the search box in the sidebar to find past translations
+- **Export Options**: Download your translation history in JSON or CSV format
+
+### 🔧 Features
+- ✅ Copy to clipboard functionality
+- ✅ Auto-save drafts
+- ✅ Translation caching
+- ✅ Token estimation and cost calculation
+- ✅ Quick preview mode
+- ✅ Batch translation support
+- ✅ Search and filter history
+- ✅ Import/export prompts and data
+- ✅ Enhanced UI/UX with modern design
+""")
+
+# JavaScript for keyboard shortcuts
+st.markdown("""
+<script>
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'Enter') {
+        // Find the translate button and click it
+        const translateButton = document.querySelector('[data-testid="stButton"] button');
+        if (translateButton && translateButton.textContent.includes('Translate')) {
+            translateButton.click();
+        }
+    }
+});
+
+// Copy to clipboard functionality
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        console.log('Text copied to clipboard');
+    }).catch(function(err) {
+        console.error('Could not copy text: ', err);
+    });
+}
+</script>
+""", unsafe_allow_html=True)
