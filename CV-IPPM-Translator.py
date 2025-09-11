@@ -18,9 +18,10 @@ st.set_page_config(
 
 # Available Claude models
 CLAUDE_MODELS = {
-    "claude-sonnet-4-20250514": "Claude 4 Sonnet",
-    "claude-3-7-sonnet-20250219": "Claude 3.7 Sonnet (Default)",
-    "claude-3-5-haiku-latest": "Claude 3.5 Haiku (Faster/Cheaper)"
+    "claude-3-7-sonnet-20250107": "Claude 3.7 Sonnet (Default)",
+    "claude-3-5-sonnet-20241022": "Claude 3.5 Sonnet",
+    "claude-3-5-haiku-20241022": "Claude 3.5 Haiku (Faster/Cheaper)",
+    "claude-3-opus-20240229": "Claude 3 Opus (Most Capable)"
 }
 
 # Custom CSS for improved UI/UX
@@ -183,9 +184,10 @@ def estimate_tokens(text: str, model: str = "claude-3-7-sonnet-20250107") -> int
     base_estimate = len(text) // 4
     
     model_multipliers = {
-        "claude-sonnet-4-20250514": 1.0,
-        "claude-3-7-sonnet-20250219": 0.95,
-        "claude-3-5-haiku-latest": .85
+        "claude-3-7-sonnet-20250107": 1.0,
+        "claude-3-5-sonnet-20241022": 1.0,
+        "claude-3-5-haiku-20241022": 0.95,
+        "claude-3-opus-20240229": 1.05
     }
     
     multiplier = model_multipliers.get(model, 1.0)
@@ -194,9 +196,10 @@ def estimate_tokens(text: str, model: str = "claude-3-7-sonnet-20250107") -> int
 def get_model_cost_per_token(model: str) -> dict:
     """Get cost per token for input/output (USD per 1K tokens)"""
     costs = {
-        "claude-sonnet-4-20250514": {"input": 0.02, "output": 0.025},
-        "claude-3-7-sonnet-20250219": {"input": 0.003, "output": 0.015},
-        "claude-3-5-haiku-latest": {"input": 0.0025, "output": 0.01}
+        "claude-3-7-sonnet-20250107": {"input": 0.003, "output": 0.015},
+        "claude-3-5-sonnet-20241022": {"input": 0.003, "output": 0.015},
+        "claude-3-5-haiku-20241022": {"input": 0.00025, "output": 0.00125},
+        "claude-3-opus-20240229": {"input": 0.015, "output": 0.075}
     }
     return costs.get(model, {"input": 0.003, "output": 0.015})
 
@@ -308,7 +311,7 @@ def initialize_session_state():
         'current_batch_results': [],
         'search_query': "",
         'filter_date': None,
-        'selected_model': "claude-3-7-sonnet-20250219",
+        'selected_model': "claude-sonnet-4-20250514",
         'api_ready': False
     }
     
@@ -647,7 +650,7 @@ with tab1:
                         
                         message = client.messages.create(
                             model=st.session_state.selected_model,
-                            max_tokens=10000,
+                            max_tokens=4000,
                             temperature=0.1,
                             messages=[{"role": "user", "content": full_prompt}]
                         )
@@ -760,7 +763,7 @@ with tab2:
                         
                         message = client.messages.create(
                             model=st.session_state.selected_model,
-                            max_tokens=10000,
+                            max_tokens=4000,
                             temperature=0.1,
                             messages=[{"role": "user", "content": full_prompt}]
                         )
