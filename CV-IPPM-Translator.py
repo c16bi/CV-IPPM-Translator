@@ -311,7 +311,7 @@ def initialize_session_state():
         'current_batch_results': [],
         'search_query': "",
         'filter_date': None,
-        'selected_model': "claude-3-7-sonnet-20250107",
+        'selected_model': "claude-sonnet-4-20250514",
         'api_ready': False
     }
     
