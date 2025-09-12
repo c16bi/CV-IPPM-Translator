@@ -18,7 +18,7 @@ st.set_page_config(
 
 # Available Claude models (based on current API availability)
 CLAUDE_MODELS = {
-    "claude-sonnet-4-20250514": "Claude Sonnet 4 (Default - High Performance)",
+    "claude-sonnet-4-20250514": "Claude Sonnet 4 (Recommended)",
     "claude-opus-4-1-20250805": "Claude Opus 4.1 (Most Capable)",
     "claude-opus-4-20250514": "Claude Opus 4 (Frontier Intelligence)",
     "claude-3-7-sonnet-20250219": "Claude Sonnet 3.7 (Hybrid Reasoning)",
@@ -26,55 +26,142 @@ CLAUDE_MODELS = {
     "claude-3-haiku-20240307": "Claude Haiku 3 (Legacy - Cheapest)"
 }
 
-# Custom CSS for improved UI/UX
+# Enhanced CSS for better UX
 st.markdown("""
 <style>
     .main-header {
-        background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
-        padding: 1rem;
-        border-radius: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem 1rem;
+        border-radius: 15px;
         margin-bottom: 2rem;
         color: white;
         text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
     
-    .metric-card {
-        background: #f8fafc;
+    .main-header h1 {
+        margin: 0;
+        font-size: 2.5rem;
+        font-weight: 700;
+    }
+    
+    .main-header p {
+        margin: 0.5rem 0 0 0;
+        opacity: 0.9;
+        font-size: 1.1rem;
+    }
+    
+    .translation-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 1rem;
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         padding: 1rem;
-        border-radius: 8px;
-        border-left: 4px solid #3b82f6;
+        border-radius: 10px;
         margin: 0.5rem 0;
+        text-align: center;
     }
     
-    .success-message {
-        background: #dcfce7;
-        border: 1px solid #16a34a;
-        border-radius: 8px;
+    .success-banner {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
         padding: 1rem;
+        border-radius: 10px;
         margin: 1rem 0;
-        color: #166534;
+        text-align: center;
+        font-weight: 600;
+    }
+    
+    .warning-banner {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 10px;
+        margin: 1rem 0;
+        text-align: center;
     }
     
     .quick-preview {
-        background: #fef3c7;
-        border: 1px solid #f59e0b;
-        border-radius: 8px;
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border: 2px solid #f59e0b;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+    }
+    
+    .model-info {
+        background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);
         padding: 1rem;
+        border-radius: 10px;
+        font-size: 0.9rem;
         margin: 1rem 0;
     }
     
     .stButton > button {
-        border-radius: 8px;
+        border-radius: 10px;
         border: none;
         transition: all 0.3s ease;
+        font-weight: 600;
+        min-height: 3rem;
     }
     
-    .model-info {
-        background: #f1f5f9;
-        padding: 0.5rem;
-        border-radius: 6px;
-        font-size: 0.85rem;
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .stButton > button[kind="secondary"] {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        color: #374151;
+        border: 2px solid #d1d5db;
+    }
+    
+    .sidebar-section {
+        background: #f8fafc;
+        padding: 1rem;
+        border-radius: 10px;
+        margin: 1rem 0;
+        border-left: 4px solid #667eea;
+    }
+    
+    .workflow-tips {
+        background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+        border: 2px solid #10b981;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin: 1rem 0;
+    }
+    
+    .history-item {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1rem;
         margin: 0.5rem 0;
+    }
+    
+    .cost-estimate {
+        background: linear-gradient(135deg, #fef7ff 0%, #fae8ff 100%);
+        border: 2px solid #d946ef;
+        padding: 1rem;
+        border-radius: 10px;
+        margin: 1rem 0;
+    }
+    
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        .main-header h1 {
+            font-size: 2rem;
+        }
+        .main-header {
+            padding: 1.5rem 1rem;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -216,20 +303,6 @@ def safe_get(item: dict, key: str, default=0):
     except (AttributeError, TypeError):
         return default
 
-def save_to_local_storage(key: str, value):
-    """Save data to session state"""
-    try:
-        st.session_state[f"ls_{key}"] = value
-    except Exception:
-        pass
-
-def load_from_local_storage(key: str):
-    """Load data from session state"""
-    try:
-        return st.session_state.get(f"ls_{key}")
-    except Exception:
-        return None
-
 def extract_topic_and_principle(spanish_text: str) -> Dict[str, str]:
     """Extract topic and principle for quick preview"""
     if not spanish_text:
@@ -306,12 +379,15 @@ def initialize_session_state():
         'translated_text': "",
         'custom_prompt': get_default_prompt(),
         'translation_cache': {},
-        'draft_spanish': "",
         'current_batch_results': [],
         'search_query': "",
         'filter_date': None,
         'selected_model': "claude-sonnet-4-20250514",
-        'api_ready': False
+        'api_ready': False,
+        'spanish_input': "",  # This replaces the problematic session state key
+        'clear_input': False,  # Flag for clearing inputs
+        'show_preview': False,
+        'last_translation_time': None
     }
     
     for key, value in defaults.items():
@@ -321,14 +397,6 @@ def initialize_session_state():
     # Fix any invalid model selection from previous sessions
     if st.session_state.selected_model not in CLAUDE_MODELS:
         st.session_state.selected_model = "claude-sonnet-4-20250514"
-
-def auto_save_draft():
-    """Auto-save draft functionality"""
-    try:
-        if 'spanish_input_key' in st.session_state:
-            save_to_local_storage('draft_spanish', st.session_state.spanish_input_key)
-    except Exception:
-        pass
 
 def setup_api_client():
     """Setup Anthropic API client"""
@@ -348,396 +416,464 @@ def setup_api_client():
 # Initialize everything
 initialize_session_state()
 
-# Header
+# Header with improved design
 st.markdown("""
 <div class="main-header">
     <h1>⚽ CV Spanish Drill Translator</h1>
-    <p>Professional football drill translation with advanced features</p>
+    <p>Fast, accurate translations for your coaching team</p>
 </div>
 """, unsafe_allow_html=True)
 
-# Sidebar
+# Workflow tips for new users
+st.markdown("""
+<div class="workflow-tips">
+    <h4>🚀 Quick Start Guide</h4>
+    <p><strong>1.</strong> Paste Spanish drill text → <strong>2.</strong> Click "Translate" → <strong>3.</strong> Copy English result → <strong>4.</strong> Click "New Translation" for next drill</p>
+    <p><em>💡 Tip: Use keyboard shortcuts and the history panel to work faster!</em></p>
+</div>
+""", unsafe_allow_html=True)
+
+# Sidebar with improved organization
 with st.sidebar:
-    st.header("🔧 Control Panel")
+    st.header("🎛️ Control Panel")
     
-    # Model Selection
-    st.subheader("🤖 Model Selection")
-    
-    # Double-check and fix model selection before rendering dropdown
-    if st.session_state.selected_model not in CLAUDE_MODELS:
-        st.session_state.selected_model = list(CLAUDE_MODELS.keys())[0]
-    
-    try:
-        model_index = list(CLAUDE_MODELS.keys()).index(st.session_state.selected_model)
-    except ValueError:
-        st.session_state.selected_model = list(CLAUDE_MODELS.keys())[0]
-        model_index = 0
-    
-    selected_model = st.selectbox(
-        "Choose Claude Model:",
-        options=list(CLAUDE_MODELS.keys()),
-        format_func=lambda x: CLAUDE_MODELS[x],
-        index=model_index,
-        key="model_selector",
-        help="Different models have different capabilities and costs"
-    )
-    
-    if selected_model != st.session_state.selected_model:
-        st.session_state.selected_model = selected_model
-    
-    # Show model info
-    costs = get_model_cost_per_token(selected_model)
-    st.markdown(f"""
-    <div class="model-info">
-    <strong>Model Info:</strong><br>
-    • Input: ${costs['input']:.4f}/1K tokens<br>
-    • Output: ${costs['output']:.4f}/1K tokens
-    </div>
-    """, unsafe_allow_html=True)
+    # Model Selection with better UX
+    with st.container():
+        st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
+        st.subheader("🤖 AI Model")
+        
+        # Model selection
+        try:
+            model_index = list(CLAUDE_MODELS.keys()).index(st.session_state.selected_model)
+        except ValueError:
+            st.session_state.selected_model = list(CLAUDE_MODELS.keys())[0]
+            model_index = 0
+        
+        selected_model = st.selectbox(
+            "Choose Model:",
+            options=list(CLAUDE_MODELS.keys()),
+            format_func=lambda x: CLAUDE_MODELS[x],
+            index=model_index,
+            key="model_selector",
+            help="Sonnet 4 is recommended for best speed/quality balance"
+        )
+        
+        if selected_model != st.session_state.selected_model:
+            st.session_state.selected_model = selected_model
+        
+        # Model info with better design
+        costs = get_model_cost_per_token(selected_model)
+        st.markdown(f"""
+        <div class="model-info">
+        <strong>💰 Pricing Info:</strong><br>
+        • Input: ${costs['input']:.4f}/1K tokens<br>
+        • Output: ${costs['output']:.4f}/1K tokens<br>
+        <em>Typical cost per drill: $0.01-0.05</em>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
     
     st.divider()
     
-    # Translation History
-    st.subheader("📚 Translation History")
-    
-    search_query = st.text_input(
-        "🔍 Search history", 
-        value=st.session_state.search_query, 
-        key="search_input",
-        placeholder="Search translations..."
-    )
-    if search_query != st.session_state.search_query:
-        st.session_state.search_query = search_query
-    
-    filter_date = st.date_input("📅 Filter by date", value=None, key="date_filter")
-    
-    filtered_history = filter_history(
-        st.session_state.translation_history, 
-        search_query, 
-        str(filter_date) if filter_date else None
-    )
-    
-    if st.session_state.translation_history:
-        st.write(f"**Total:** {len(st.session_state.translation_history)} | **Filtered:** {len(filtered_history)}")
+    # Translation History with improved interface
+    with st.container():
+        st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
+        st.subheader("📚 Translation History")
         
-        # Export options
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("📥 JSON", help="Export as JSON"):
-                try:
+        # Search and filter
+        search_query = st.text_input(
+            "🔍 Search translations", 
+            value=st.session_state.search_query, 
+            placeholder="Search by text content..."
+        )
+        if search_query != st.session_state.search_query:
+            st.session_state.search_query = search_query
+        
+        filter_date = st.date_input("📅 Filter by date", value=None)
+        
+        filtered_history = filter_history(
+            st.session_state.translation_history, 
+            search_query, 
+            str(filter_date) if filter_date else None
+        )
+        
+        if st.session_state.translation_history:
+            st.success(f"📊 **{len(st.session_state.translation_history)}** total translations")
+            if len(filtered_history) != len(st.session_state.translation_history):
+                st.info(f"Showing **{len(filtered_history)}** filtered results")
+            
+            # Export options with better UX
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("📥 Export JSON", use_container_width=True):
                     json_data = create_download_link(st.session_state.translation_history, "translations.json", "json")
                     st.download_button(
-                        label="Download JSON",
+                        label="⬇️ Download",
                         data=json_data,
-                        file_name="translations.json",
-                        mime="application/json"
+                        file_name=f"cv_translations_{datetime.now().strftime('%Y%m%d')}.json",
+                        mime="application/json",
+                        use_container_width=True
                     )
-                except Exception as e:
-                    st.error(f"Export failed: {e}")
-        
-        with col2:
-            if st.button("📥 CSV", help="Export as CSV"):
-                try:
+            
+            with col2:
+                if st.button("📥 Export CSV", use_container_width=True):
                     csv_data = create_download_link(st.session_state.translation_history, "translations.csv", "csv")
                     st.download_button(
-                        label="Download CSV",
+                        label="⬇️ Download",
                         data=csv_data,
-                        file_name="translations.csv",
-                        mime="text/csv"
+                        file_name=f"cv_translations_{datetime.now().strftime('%Y%m%d')}.csv",
+                        mime="text/csv",
+                        use_container_width=True
                     )
-                except Exception as e:
-                    st.error(f"Export failed: {e}")
-        
-        # Show filtered history
-        for i, translation in enumerate(reversed(filtered_history[-10:])):
-            timestamp = safe_get(translation, 'timestamp', 'Unknown')[:16]
-            spanish_preview = safe_get(translation, 'spanish_input', '')[:100]
-            if len(spanish_preview) > 100:
-                spanish_preview += "..."
+            
+            # Recent history with better presentation
+            st.markdown("**📋 Recent Translations:**")
+            for i, translation in enumerate(reversed(filtered_history[-5:])):
+                timestamp = safe_get(translation, 'timestamp', 'Unknown')[:16]
+                spanish_preview = safe_get(translation, 'spanish_input', '')[:80]
+                if len(spanish_preview) > 80:
+                    spanish_preview += "..."
                 
-            with st.expander(f"#{len(filtered_history) - i} - {timestamp}"):
-                st.write("**Spanish (preview):**")
-                st.text(spanish_preview)
-                
-                if st.button(f"📋 Load", key=f"load_{i}"):
-                    st.session_state.loaded_spanish = safe_get(translation, 'spanish_input', '')
-                    st.session_state.translated_text = safe_get(translation, 'english_output', '')
+                with st.expander(f"#{len(filtered_history) - i} • {timestamp.split()[1] if ' ' in timestamp else timestamp}"):
+                    st.markdown(f"**Preview:** {spanish_preview}")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button(f"📂 Load", key=f"load_{i}", use_container_width=True):
+                            st.session_state.spanish_input = safe_get(translation, 'spanish_input', '')
+                            st.session_state.translated_text = safe_get(translation, 'english_output', '')
+                            st.success("Translation loaded!")
+                            st.rerun()
+                    
+                    with col2:
+                        tokens_used = safe_get(translation, 'input_tokens', 0) + safe_get(translation, 'output_tokens', 0)
+                        st.metric("Tokens", f"{tokens_used:,}" if tokens_used > 0 else "N/A")
+            
+            # Clear history
+            if st.button("🗑️ Clear All History", type="secondary", use_container_width=True):
+                if st.button("⚠️ Confirm Clear", type="primary", use_container_width=True):
+                    st.session_state.translation_history = []
+                    st.session_state.translation_cache = {}
+                    st.success("History cleared!")
                     st.rerun()
-        
-        if st.button("🗑️ Clear All History", type="secondary"):
-            st.session_state.translation_history = []
-            st.session_state.translation_cache = {}
-            st.success("History cleared!")
-            st.rerun()
-    else:
-        st.write("No translations yet")
+        else:
+            st.info("No translations yet. Start by translating a drill!")
+        st.markdown('</div>', unsafe_allow_html=True)
     
     st.divider()
     
-    # Prompt Editor
-    st.subheader("📝 Prompt Editor")
-    
-    with st.expander("Edit System Prompt", expanded=False):
+    # Advanced Settings
+    with st.expander("⚙️ Advanced Settings"):
+        st.subheader("📝 System Prompt")
         st.write(f"**Length:** {len(st.session_state.custom_prompt):,} characters")
         
         new_prompt = st.text_area(
-            "Edit prompt:",
+            "Edit system prompt:",
             value=st.session_state.custom_prompt,
-            height=200,
-            key="prompt_editor"
+            height=150,
+            help="Modify the AI's translation instructions"
         )
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("💾 Save", type="primary"):
+            if st.button("💾 Save Changes", use_container_width=True):
                 st.session_state.custom_prompt = new_prompt
-                st.success("Saved!")
+                st.success("Prompt updated!")
         
         with col2:
-            if st.button("🔄 Reset"):
+            if st.button("🔄 Reset Default", use_container_width=True):
                 st.session_state.custom_prompt = get_default_prompt()
-                st.success("Reset!")
+                st.success("Prompt reset!")
                 st.rerun()
 
 # Setup API client
 client = setup_api_client()
 
-# Main content area
-tab1, tab2 = st.tabs(["🔄 Single Translation", "📦 Batch Translation"])
+# Main translation interface
+st.markdown("## 🔄 Translation Workspace")
 
-with tab1:
-    # Single translation interface
-    col1, col2 = st.columns([1, 1])
+# Handle clear input flag
+if st.session_state.get('clear_input', False):
+    st.session_state.spanish_input = ""
+    st.session_state.translated_text = ""
+    st.session_state.clear_input = False
+
+# Input/Output columns
+col1, col2 = st.columns([1, 1], gap="large")
+
+with col1:
+    st.markdown('<div class="translation-card">', unsafe_allow_html=True)
+    st.subheader("🇪🇸 Spanish Input")
     
-    with col1:
-        st.subheader("🇪🇸 Spanish Input")
-        
-        # Load from history if available, but handle clear flag
-        default_spanish = ""
-        if st.session_state.get('clear_input_flag', False):
-            st.session_state.clear_input_flag = False
-            save_to_local_storage('draft_spanish', '')
-        else:
-            default_spanish = st.session_state.get('loaded_spanish', 
-                                                 load_from_local_storage('draft_spanish') or '')
-        
-        spanish_text = st.text_area(
-            "Paste your Spanish drill description:",
-            height=500,
-            value=default_spanish,
-            key="spanish_input_key",
-            placeholder="Paste the Spanish drill content here...",
-            on_change=auto_save_draft
-        )
-        
-        # Input stats
-        col_stats1, col_stats2, col_stats3 = st.columns(3)
-        with col_stats1:
-            st.metric("Characters", len(spanish_text))
-        with col_stats2:
-            st.metric("Words", len(spanish_text.split()) if spanish_text else 0)
-        with col_stats3:
+    spanish_text = st.text_area(
+        "Paste your Spanish drill description here:",
+        height=400,
+        value=st.session_state.spanish_input,
+        placeholder="""Example:
+CONTENIDO: Pase y control
+CONSIGNA: Mejorar la precisión del pase
+
+Ejercicio de rondo en espacio de 15x15 metros...
+        """,
+        help="Paste the Spanish drill content here. The system will auto-detect structure and convert it to English coaching format."
+    )
+    
+    # Update session state
+    if spanish_text != st.session_state.spanish_input:
+        st.session_state.spanish_input = spanish_text
+    
+    # Input statistics
+    if spanish_text:
+        col_s1, col_s2, col_s3 = st.columns(3)
+        with col_s1:
+            st.markdown(f'<div class="stats-card"><strong>{len(spanish_text)}</strong><br>Characters</div>', unsafe_allow_html=True)
+        with col_s2:
+            word_count = len(spanish_text.split())
+            st.markdown(f'<div class="stats-card"><strong>{word_count}</strong><br>Words</div>', unsafe_allow_html=True)
+        with col_s3:
             estimated_tokens = estimate_tokens(
-                st.session_state.custom_prompt.format(spanish_text=spanish_text) if spanish_text else "",
+                st.session_state.custom_prompt.format(spanish_text=spanish_text),
                 st.session_state.selected_model
             )
-            st.metric("Est. Tokens", f"{estimated_tokens:,}")
+            st.markdown(f'<div class="stats-card"><strong>{estimated_tokens:,}</strong><br>Est. Tokens</div>', unsafe_allow_html=True)
         
         # Cost estimation
-        if spanish_text:
+        if spanish_text.strip():
+            input_tokens = estimate_tokens(
+                st.session_state.custom_prompt.format(spanish_text=spanish_text),
+                st.session_state.selected_model
+            )
+            estimated_output_tokens = max(len(spanish_text) // 2, 500)
+            estimated_cost = calculate_estimated_cost(
+                input_tokens, 
+                estimated_output_tokens, 
+                st.session_state.selected_model
+            )
+            
+            st.markdown(f"""
+            <div class="cost-estimate">
+                <strong>💰 Estimated Cost:</strong> ${estimated_cost:.4f}<br>
+                <em>Using {CLAUDE_MODELS[st.session_state.selected_model].split('(')[0].strip()}</em>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # Action buttons for input
+    col_b1, col_b2, col_b3 = st.columns(3)
+    
+    with col_b1:
+        if st.button("🗑️ Clear", use_container_width=True, help="Clear the input text"):
+            st.session_state.clear_input = True
+            st.rerun()
+    
+    with col_b2:
+        if st.button("👁️ Preview", use_container_width=True, help="Quick preview without translation"):
+            if spanish_text.strip():
+                preview_data = extract_topic_and_principle(spanish_text)
+                if preview_data['topic'] or preview_data['principle']:
+                    st.markdown(f"""
+                    <div class="quick-preview">
+                        <h4>📋 Quick Preview</h4>
+                        <p><strong>Topic:</strong> {preview_data['topic'] or 'Not detected'}</p>
+                        <p><strong>Principle:</strong> {preview_data['principle'] or 'Not detected'}</p>
+                        <em>This is just a preview. Click "Translate" for full conversion.</em>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.warning("⚠️ Could not detect standard drill format. Translation will still work!")
+            else:
+                st.warning("⚠️ Please enter Spanish text first")
+    
+    with col_b3:
+        cache_info = "🚀 Cached" if spanish_text and get_text_hash(spanish_text + st.session_state.custom_prompt + st.session_state.selected_model) in st.session_state.translation_cache else "🆕 New"
+        st.info(f"Status: {cache_info}")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with col2:
+    st.markdown('<div class="translation-card">', unsafe_allow_html=True)
+    st.subheader("🇺🇸 English Output")
+    
+    english_output = st.text_area(
+        "English translation will appear here:",
+        height=400,
+        value=st.session_state.translated_text,
+        placeholder="Your professional English drill translation will appear here after clicking 'Translate'...",
+        help="The AI will convert your Spanish drill into a professional English coaching format with clear instructions, proper measurements, and coaching points."
+    )
+    
+    # Output statistics and actions
+    if english_output:
+        col_o1, col_o2, col_o3 = st.columns(3)
+        with col_o1:
+            st.markdown(f'<div class="stats-card"><strong>{len(english_output)}</strong><br>Characters</div>', unsafe_allow_html=True)
+        with col_o2:
+            word_count = len(english_output.split())
+            st.markdown(f'<div class="stats-card"><strong>{word_count}</strong><br>Words</div>', unsafe_allow_html=True)
+        with col_o3:
+            # Show last translation time if available
+            if st.session_state.last_translation_time:
+                st.markdown(f'<div class="stats-card"><strong>{st.session_state.last_translation_time:.1f}s</strong><br>Duration</div>', unsafe_allow_html=True)
+            else:
+                st.markdown('<div class="stats-card"><strong>✅</strong><br>Ready</div>', unsafe_allow_html=True)
+        
+        # Copy button
+        if st.button("📋 Copy to Clipboard", use_container_width=True, type="secondary"):
+            st.success("✅ Translation copied! (Use Ctrl+V to paste)")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Main action buttons
+st.markdown("---")
+col_main1, col_main2, col_main3 = st.columns([1, 2, 1])
+
+with col_main1:
+    if st.button("🆕 New Translation", type="secondary", use_container_width=True, help="Clear both inputs for a fresh start"):
+        st.session_state.clear_input = True
+        st.rerun()
+
+with col_main2:
+    # Main translate button
+    translate_button = st.button(
+        "🚀 TRANSLATE DRILL" if spanish_text else "⚡ TRANSLATE DRILL", 
+        type="primary", 
+        use_container_width=True,
+        help="Convert Spanish drill to professional English format (Ctrl+Enter)"
+    )
+
+with col_main3:
+    if english_output and st.button("📋 Copy & New", type="secondary", use_container_width=True, help="Copy result and start fresh"):
+        st.session_state.clear_input = True
+        st.success("✅ Copied! Ready for next drill.")
+        st.rerun()
+
+# Translation logic with improved error handling and UX
+if translate_button and st.session_state.api_ready and client:
+    if spanish_text.strip():
+        cache_key = get_text_hash(spanish_text + st.session_state.custom_prompt + st.session_state.selected_model)
+        
+        if cache_key in st.session_state.translation_cache:
+            # Load from cache
+            st.markdown('<div class="success-banner">🚀 Loading from cache...</div>', unsafe_allow_html=True)
+            cached_result = st.session_state.translation_cache[cache_key]
+            
+            st.session_state.translated_text = cached_result['translation']
+            st.session_state.last_translation_time = 0.1
+            
+            # Add to history
+            translation_entry = {
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'spanish_input': spanish_text,
+                'english_output': cached_result['translation'],
+                'input_tokens': safe_get(cached_result, 'input_tokens', 0),
+                'output_tokens': safe_get(cached_result, 'output_tokens', 0),
+                'duration': 0.1,
+                'cached': True,
+                'model': st.session_state.selected_model
+            }
+            st.session_state.translation_history.append(translation_entry)
+            
+            st.markdown('<div class="success-banner">✅ Translation loaded from cache! Ready for your next drill.</div>', unsafe_allow_html=True)
+            st.rerun()
+        else:
+            # New translation
+            start_time = time.time()
+            
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
             try:
-                input_tokens = estimate_tokens(
-                    st.session_state.custom_prompt.format(spanish_text=spanish_text),
-                    st.session_state.selected_model
+                status_text.text("🔄 Preparing translation request...")
+                progress_bar.progress(20)
+                
+                full_prompt = st.session_state.custom_prompt.format(spanish_text=spanish_text)
+                
+                status_text.text("🤖 Sending to AI model...")
+                progress_bar.progress(40)
+                
+                message = client.messages.create(
+                    model=st.session_state.selected_model,
+                    max_tokens=4000,
+                    temperature=0.1,
+                    messages=[{"role": "user", "content": full_prompt}]
                 )
-                estimated_output_tokens = max(len(spanish_text) // 2, 500)
-                estimated_cost = calculate_estimated_cost(
-                    input_tokens, 
-                    estimated_output_tokens, 
+                
+                progress_bar.progress(80)
+                status_text.text("✨ Processing response...")
+                
+                end_time = time.time()
+                duration = end_time - start_time
+                english_translation = message.content[0].text
+                
+                # Cache the result
+                cache_entry = {
+                    'translation': english_translation,
+                    'input_tokens': message.usage.input_tokens,
+                    'output_tokens': message.usage.output_tokens,
+                    'timestamp': datetime.now().isoformat()
+                }
+                st.session_state.translation_cache[cache_key] = cache_entry
+                
+                # Update session state
+                st.session_state.translated_text = english_translation
+                st.session_state.last_translation_time = duration
+                
+                # Add to history
+                translation_entry = {
+                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'spanish_input': spanish_text,
+                    'english_output': english_translation,
+                    'input_tokens': message.usage.input_tokens,
+                    'output_tokens': message.usage.output_tokens,
+                    'duration': round(duration, 2),
+                    'cached': False,
+                    'model': st.session_state.selected_model
+                }
+                st.session_state.translation_history.append(translation_entry)
+                
+                progress_bar.progress(100)
+                status_text.empty()
+                progress_bar.empty()
+                
+                # Success message with details
+                actual_cost = calculate_estimated_cost(
+                    message.usage.input_tokens, 
+                    message.usage.output_tokens, 
                     st.session_state.selected_model
                 )
                 
                 st.markdown(f"""
-                **Cost Estimate ({CLAUDE_MODELS[st.session_state.selected_model]}):**
-                - Input: ~{input_tokens:,} tokens
-                - Est. Output: ~{estimated_output_tokens:,} tokens  
-                - **Est. Cost: ${estimated_cost:.4f}**
-                """)
-            except Exception:
-                st.info("Cost estimation unavailable")
-        
-        # Control buttons
-        col_btn1, col_btn2, col_btn3 = st.columns(3)
-        
-        with col_btn1:
-            if st.button("🗑️ Clear", key="clear_input", help="Clear the Spanish text"):
-                st.session_state.clear_input_flag = True
+                <div class="success-banner">
+                    ✅ Translation completed in {duration:.1f} seconds!<br>
+                    💰 Cost: ${actual_cost:.4f} • 🔤 Tokens: {message.usage.input_tokens + message.usage.output_tokens:,}
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.balloons()
                 st.rerun()
-        
-        with col_btn2:
-            if st.button("👁️ Preview", key="quick_preview", help="Quick preview without API"):
-                if spanish_text.strip():
-                    preview_data = extract_topic_and_principle(spanish_text)
-                    if preview_data['topic'] or preview_data['principle']:
-                        st.markdown(f"""
-                        <div class="quick-preview">
-                            <h4>Quick Preview</h4>
-                            <p><strong>Topic:</strong> {preview_data['topic'] or 'Not found'}</p>
-                            <p><strong>Principle:</strong> {preview_data['principle']}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        st.warning("Could not extract topic/principle")
-                else:
-                    st.warning("Please enter Spanish text first")
-        
-        with col_btn3:
-            st.info(f"**Model:** {CLAUDE_MODELS[st.session_state.selected_model].split('(')[0].strip()}")
+                
+            except Exception as e:
+                progress_bar.empty()
+                status_text.empty()
+                st.markdown(f'<div class="warning-banner">❌ Translation failed: {str(e)}</div>', unsafe_allow_html=True)
+                st.error("Please check your API connection and try again.")
+    else:
+        st.markdown('<div class="warning-banner">⚠️ Please enter Spanish text to translate</div>', unsafe_allow_html=True)
+elif translate_button and not st.session_state.api_ready:
+    st.markdown('<div class="warning-banner">❌ API not available. Please check your configuration.</div>', unsafe_allow_html=True)
+
+# Quick stats footer
+if st.session_state.translation_history:
+    total_translations = len(st.session_state.translation_history)
+    total_tokens = sum(safe_get(t, 'input_tokens', 0) + safe_get(t, 'output_tokens', 0) for t in st.session_state.translation_history)
+    total_cost = sum(calculate_estimated_cost(
+        safe_get(t, 'input_tokens', 0),
+        safe_get(t, 'output_tokens', 0),
+        safe_get(t, 'model', 'claude-sonnet-4-20250514')
+    ) for t in st.session_state.translation_history)
     
-    with col2:
-        st.subheader("🇬🇧 English Output")
-        
-        english_output = st.text_area(
-            "English translation:",
-            height=500,
-            value=st.session_state.translated_text,
-            key="english_output_key"
-        )
-        
-        # Output controls
-        col_out1, col_out2, col_out3 = st.columns(3)
-        
-        with col_out1:
-            if english_output:
-                if st.button("📋 Copy", key="copy_output", help="Copy to clipboard"):
-                    st.success("Copied!")
-        
-        with col_out2:
-            st.metric("Characters", len(english_output))
-        
-        with col_out3:
-            st.metric("Words", len(english_output.split()) if english_output else 0)
-
-    # Clear loaded history
-    if 'loaded_spanish' in st.session_state:
-        del st.session_state.loaded_spanish
-
-    # Translation controls
     st.markdown("---")
-    col_main1, col_main2, col_main3 = st.columns([1, 2, 1])
-    
-    with col_main1:
-        if st.button("🆕 New Translation", type="secondary", use_container_width=True, help="Clear both inputs for a fresh start"):
-            st.session_state.spanish_input_key = ""
-            st.session_state.translated_text = ""
-            save_to_local_storage('draft_spanish', '')
-            st.rerun()
-    
-    with col_main2:
-        st.markdown("💡 **Tip:** Press Ctrl+Enter to translate quickly")
-        translate_button = st.button("🔄 Translate Drill", type="primary", use_container_width=True)
-    
-    with col_main3:
-        if english_output and st.button("📋 Copy & New", type="secondary", use_container_width=True, help="Copy translation and start fresh"):
-            st.session_state.spanish_input_key = ""
-            st.session_state.translated_text = ""
-            save_to_local_storage('draft_spanish', '')
-            st.success("Translation copied! Ready for new input.")
-            st.rerun()
-
-    # Translation logic with improved workflow
-    if translate_button and st.session_state.api_ready and client:
-        if spanish_text.strip():
-            cache_key = get_text_hash(spanish_text + st.session_state.custom_prompt + st.session_state.selected_model)
-            
-            if cache_key in st.session_state.translation_cache:
-                st.info("🚀 Loading from cache...")
-                cached_result = st.session_state.translation_cache[cache_key]
-                
-                # Don't clear Spanish input - keep it visible with the translation
-                st.session_state.translated_text = cached_result['translation']
-                
-                translation_entry = {
-                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    'spanish_input': spanish_text,
-                    'english_output': cached_result['translation'],
-                    'input_tokens': safe_get(cached_result, 'input_tokens', 0),
-                    'output_tokens': safe_get(cached_result, 'output_tokens', 0),
-                    'duration': 0.1,
-                    'cached': True,
-                    'model': st.session_state.selected_model
-                }
-                st.session_state.translation_history.append(translation_entry)
-                st.success("✅ Translation loaded from cache!")
-                st.rerun()
-            else:
-                start_time = time.time()
-                
-                with st.spinner("🔄 Translating..."):
-                    try:
-                        full_prompt = st.session_state.custom_prompt.format(spanish_text=spanish_text)
-                        
-                        message = client.messages.create(
-                            model=st.session_state.selected_model,
-                            max_tokens=4000,
-                            temperature=0.1,
-                            messages=[{"role": "user", "content": full_prompt}]
-                        )
-                        
-                        end_time = time.time()
-                        english_translation = message.content[0].text
-                        
-                        # Cache the result
-                        cache_entry = {
-                            'translation': english_translation,
-                            'input_tokens': message.usage.input_tokens,
-                            'output_tokens': message.usage.output_tokens,
-                            'timestamp': datetime.now().isoformat()
-                        }
-                        st.session_state.translation_cache[cache_key] = cache_entry
-                        
-                        # Keep Spanish input visible, update English output
-                        st.session_state.translated_text = english_translation
-                        
-                        translation_entry = {
-                            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                            'spanish_input': spanish_text,
-                            'english_output': english_translation,
-                            'input_tokens': message.usage.input_tokens,
-                            'output_tokens': message.usage.output_tokens,
-                            'duration': round(end_time - start_time, 2),
-                            'cached': False,
-                            'model': st.session_state.selected_model
-                        }
-                        st.session_state.translation_history.append(translation_entry)
-                        
-                        st.success(f"✅ Translation completed in {end_time - start_time:.2f} seconds!")
-                        st.info("💡 Use 'New Translation' button to clear both inputs for your next drill.")
-                        st.rerun()
-                        
-                    except Exception as e:
-                        st.error(f"❌ Translation failed: {str(e)}")
-        else:
-            st.warning("⚠️ Please enter some Spanish text to translate.")
-    elif translate_button and not st.session_state.api_ready:
-        st.error("❌ API not available. Please check your configuration.")
-
-with tab2:
-    st.subheader("📦 Batch Translation")
-    st.write("Upload text files with multiple Spanish drills separated by '---' or upload multiple files.")
-    
-    uploaded_files = st.file_uploader(
-        "Choose files", 
-        type=['txt'], 
-        accept_multiple_files=True,
-        help="Upload .txt files containing Spanish drill descriptions"
-    )
-    
-    batch_text = st.text_area(
-        "Or paste multiple drills here (separate with '---'):",
-        height=200,
-        placeholder="Drill 1 content\n---\nDrill 2 content\n---\nDrill 3 content"
-    )
-    
-    if uploaded_files or batch_text:
-        drills_to_process = []
+    st.markdown(f"""
+    <div style="text-align: center; color: #64748b; font-size: 0.9rem; margin: 1rem 0;">
+        📊 Session Stats: <strong>{total_translations}</strong> translations • <strong>{total_tokens:,}</strong> tokens • <strong>${total_cost:.3f}</strong> total cost
+    </div>
+    """, unsafe_allow_html=True)
