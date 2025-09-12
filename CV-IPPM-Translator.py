@@ -1,4 +1,24 @@
-import streamlit as st
+# Translation controls
+    st.markdown("---")
+    col_main1, col_main2, col_main3 = st.columns([1, 2, 1])
+    
+    with col_main1:
+        if st.button("🆕 New Translation", type="secondary", use_container_width=True, help="Clear both inputs for a fresh start"):
+            st.session_state.spanish_input_key = ""
+            st.session_state.translated_text = ""
+            if 'pending_translation' in st.session_state:
+                del st.session_state.pending_translation
+            save_to_local_storage('draft_spanish', '')
+            st.rerun()
+    
+    with col_main2:
+        st.markdown("💡 **Tip:** Press Ctrl+Enter to translate quickly")
+        translate_button = st.button("🔄 Translate Drill", type="primary", use_container_width=True)
+    
+    with col_main3:
+        if english_output and st.button("📋 Copy & New", type="secondary", use_container_width=True, help="Copy translation and start fresh"):
+            # Store the translation for copying
+            stimport streamlit as st
 import anthropic
 from datetime import datetime
 import time
@@ -868,17 +888,10 @@ with tab1:
     with col2:
         st.subheader("🇬🇧 English Output")
         
-        # Check if we have a pending translation to display
-        display_text = st.session_state.translated_text
-        if 'pending_translation' in st.session_state:
-            display_text = st.session_state.pending_translation
-            st.session_state.translated_text = display_text
-            del st.session_state.pending_translation
-        
         english_output = st.text_area(
             "English translation:",
             height=500,
-            value=display_text,
+            value=st.session_state.translated_text,
             key="english_output_key"
         )
         
