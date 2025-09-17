@@ -546,13 +546,13 @@ with tab1:
                 st.button("📋 Copy to Clipboard", key="copy_drill", use_container_width=True, 
                          help="Copy translation to clipboard")
             with cols[1]:
-                if st.button("💾 Download", key="download_drill", use_container_width=True):
-                    st.download_button(
-                        label="⬇️ Download as .txt",
-                        data=english_output,
-                        file_name=f"drill_translation_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-                        mime="text/plain"
-                    )
+                st.download_button(
+                    "💾 Download",
+                    data=english_output,
+                    file_name=f"drill_translation_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                    mime="text/plain",
+                    use_container_width=True
+                )
     
     # Action buttons
     st.markdown("---")
@@ -892,38 +892,37 @@ with tab4:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button("📄 Export as JSON", use_container_width=True):
-                json_data = json.dumps(filtered_history, indent=2, ensure_ascii=False)
-                st.download_button(
-                    "⬇️ Download JSON",
-                    data=json_data,
-                    file_name=f"translations_{datetime.now().strftime('%Y%m%d')}.json",
-                    mime="application/json"
-                )
+            json_data = json.dumps(filtered_history, indent=2, ensure_ascii=False)
+            st.download_button(
+                "📄 Export as JSON",
+                data=json_data,
+                file_name=f"translations_{datetime.now().strftime('%Y%m%d')}.json",
+                mime="application/json",
+                use_container_width=True
+            )
         
         with col2:
-            if st.button("📊 Export as CSV", use_container_width=True):
-                if filtered_history:
-                    output = io.StringIO()
-                    fieldnames = ['timestamp', 'type', 'model', 'input_tokens', 'output_tokens']
-                    writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction='ignore')
-                    writer.writeheader()
-                    writer.writerows(filtered_history)
-                    csv_data = output.getvalue()
-                    
-                    st.download_button(
-                        "⬇️ Download CSV",
-                        data=csv_data,
-                        file_name=f"translations_{datetime.now().strftime('%Y%m%d')}.csv",
-                        mime="text/csv"
-                    )
+            if filtered_history:
+                output = io.StringIO()
+                fieldnames = ['timestamp', 'type', 'model', 'input_tokens', 'output_tokens']
+                writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction='ignore')
+                writer.writeheader()
+                writer.writerows(filtered_history)
+                csv_data = output.getvalue()
+                
+                st.download_button(
+                    "📊 Export as CSV",
+                    data=csv_data,
+                    file_name=f"translations_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
         
         with col3:
             if st.button("🗑️ Clear History", use_container_width=True):
-                if st.button("⚠️ Confirm Clear All", use_container_width=True):
-                    st.session_state.translation_history = []
-                    st.success("✅ History cleared!")
-                    st.rerun()
+                st.session_state.translation_history = []
+                st.success("✅ History cleared!")
+                st.rerun()
         
         # Display history items
         st.markdown("### 📋 Recent Translations")
@@ -983,4 +982,3 @@ st.markdown("""
 </div>
 """.format(model=CLAUDE_MODELS[st.session_state.selected_model].split('(')[0].strip()), 
 unsafe_allow_html=True)
-            if st.button("
