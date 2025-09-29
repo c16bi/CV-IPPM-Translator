@@ -476,7 +476,7 @@ with tab1:
     with col1:
         st.subheader("🇪🇸 Spanish Drill")
         
-        spanish_text = st.text_area(
+        st.text_area(
             "Paste drill description:",
             height=400,
             value=st.session_state.spanish_input,
@@ -484,6 +484,10 @@ with tab1:
             key="drill_spanish_input"
         )
         
+        # Get the current value from the widget
+        spanish_text = st.session_state.get("drill_spanish_input", "")
+        
+        # Update persistent session state
         if spanish_text != st.session_state.spanish_input:
             st.session_state.spanish_input = spanish_text
         
@@ -606,7 +610,7 @@ with tab2:
     with col1:
         st.subheader("🇪🇸 Spanish Text")
         
-        general_spanish = st.text_area(
+        st.text_area(
             "Enter any Spanish text:",
             height=400,
             value=st.session_state.general_spanish_input,
@@ -614,6 +618,10 @@ with tab2:
             key="general_spanish_input_field"
         )
         
+        # Get the current value from the widget
+        general_spanish = st.session_state.get("general_spanish_input_field", "")
+        
+        # Update persistent session state
         if general_spanish != st.session_state.general_spanish_input:
             st.session_state.general_spanish_input = general_spanish
         
