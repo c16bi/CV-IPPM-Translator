@@ -531,16 +531,17 @@ with tab1:
     with col2:
         st.subheader("🇺🇸 English Translation")
         
-        english_output = st.text_area(
+        st.text_area(
             "Translation will appear here:",
             height=400,
             value=st.session_state.translated_text,
             placeholder="Your translated drill will appear here...",
-            key="drill_english_output"
+            key="drill_english_output",
+            disabled=True
         )
         
         # Output actions
-        if english_output:
+        if st.session_state.translated_text:
             cols = st.columns(2)
             with cols[0]:
                 st.button("📋 Copy to Clipboard", key="copy_drill", use_container_width=True, 
@@ -548,7 +549,7 @@ with tab1:
             with cols[1]:
                 st.download_button(
                     "💾 Download",
-                    data=english_output,
+                    data=st.session_state.translated_text,
                     file_name=f"drill_translation_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
                     mime="text/plain",
                     use_container_width=True
@@ -585,7 +586,7 @@ with tab1:
                 st.warning("⚠️ Please enter Spanish text first")
     
     with col3:
-        if english_output and st.button("📋 Copy & New", use_container_width=True, key="copy_new_drill"):
+        if st.session_state.translated_text and st.button("📋 Copy & New", use_container_width=True, key="copy_new_drill"):
             st.session_state.spanish_input = ""
             st.session_state.translated_text = ""
             st.success("✅ Copied! Ready for next drill")
@@ -639,15 +640,16 @@ with tab2:
     with col2:
         st.subheader("🇺🇸 English Translation")
         
-        general_english = st.text_area(
+        st.text_area(
             "Translation will appear here:",
             height=400,
             value=st.session_state.general_translated_text,
             placeholder="Your translation will appear here...",
-            key="general_english_output"
+            key="general_english_output",
+            disabled=True
         )
         
-        if general_english:
+        if st.session_state.general_translated_text:
             if st.button("📋 Copy Translation", use_container_width=True, key="copy_general"):
                 st.success("✅ Copied to clipboard!")
     
@@ -681,10 +683,10 @@ with tab2:
                 st.warning("⚠️ Please enter Spanish text first")
     
     with col3:
-        if general_english:
+        if st.session_state.general_translated_text:
             st.download_button(
                 "💾 Download",
-                data=general_english,
+                data=st.session_state.general_translated_text,
                 file_name=f"translation_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
                 mime="text/plain",
                 use_container_width=True
