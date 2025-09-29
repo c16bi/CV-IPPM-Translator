@@ -476,20 +476,13 @@ with tab1:
     with col1:
         st.subheader("🇪🇸 Spanish Drill")
         
-        st.text_area(
+        spanish_text = st.text_area(
             "Paste drill description:",
             height=400,
             value=st.session_state.spanish_input,
             placeholder="CONTENIDO: Control y pase\nCONSIGNA: Mejorar la precisión...",
             key="drill_spanish_input"
         )
-        
-        # Get the current value from the widget
-        spanish_text = st.session_state.get("drill_spanish_input", "")
-        
-        # Update persistent session state
-        if spanish_text != st.session_state.spanish_input:
-            st.session_state.spanish_input = spanish_text
         
         # Metrics
         if spanish_text:
@@ -581,8 +574,10 @@ with tab1:
                     )
                     if translation:
                         st.session_state.translated_text = translation
+                        st.session_state.spanish_input = spanish_text
                         st.success("✅ Translation complete!")
                         st.balloons()
+                        time.sleep(0.5)  # Brief pause to show success message
                         st.rerun()
                     else:
                         st.error(f"❌ Translation failed: {error}")
@@ -594,6 +589,7 @@ with tab1:
             st.session_state.spanish_input = ""
             st.session_state.translated_text = ""
             st.success("✅ Copied! Ready for next drill")
+            time.sleep(0.5)
             st.rerun()
 
 # GENERAL TRANSLATION TAB
@@ -610,20 +606,13 @@ with tab2:
     with col1:
         st.subheader("🇪🇸 Spanish Text")
         
-        st.text_area(
+        general_spanish = st.text_area(
             "Enter any Spanish text:",
             height=400,
             value=st.session_state.general_spanish_input,
             placeholder="Enter any Spanish soccer content here...",
             key="general_spanish_input_field"
         )
-        
-        # Get the current value from the widget
-        general_spanish = st.session_state.get("general_spanish_input_field", "")
-        
-        # Update persistent session state
-        if general_spanish != st.session_state.general_spanish_input:
-            st.session_state.general_spanish_input = general_spanish
         
         # Metrics
         if general_spanish:
@@ -683,7 +672,9 @@ with tab2:
                     )
                     if translation:
                         st.session_state.general_translated_text = translation
+                        st.session_state.general_spanish_input = general_spanish
                         st.success("✅ Translation complete!")
+                        time.sleep(0.5)
                         st.rerun()
                     else:
                         st.error(f"❌ Translation failed: {error}")
