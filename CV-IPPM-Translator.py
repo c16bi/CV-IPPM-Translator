@@ -202,6 +202,18 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     
+    /* Copy instruction */
+    .copy-instruction {
+        background: #EEF2FF;
+        border: 1px solid #C7D2FE;
+        border-radius: 6px;
+        padding: 0.5rem 0.75rem;
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        color: #4338CA;
+        text-align: center;
+    }
+    
     /* Responsive design */
     @media (max-width: 768px) {
         .main-header h1 {
@@ -378,9 +390,7 @@ def initialize_session_state():
         'clear_input': False,
         'last_translation_time': None,
         'show_prompt_editor': False,
-        'active_tab': 'drill',
-        'copy_success_drill': False,
-        'copy_success_general': False
+        'active_tab': 'drill'
     }
     
     for key, value in defaults.items():
@@ -478,7 +488,7 @@ with tab1:
     # Quick tip
     st.markdown("""
     <div class="quick-tip">
-        💡 <strong>Quick workflow:</strong> Paste Spanish drill → Click Translate → Copy result → Click "Clear & New" for next drill
+        💡 <strong>Quick workflow:</strong> Paste Spanish drill → Click Translate → Select all text (Ctrl+A / Cmd+A) → Copy (Ctrl+C / Cmd+C)
     </div>
     """, unsafe_allow_html=True)
     
@@ -539,42 +549,30 @@ with tab1:
     with col2:
         st.subheader("🇺🇸 English Translation")
         
-        # Display translation in a code block for easy copying
-        if st.session_state.translated_text:
-            st.code(st.session_state.translated_text, language=None)
-        else:
-            st.info("Your translated drill will appear here...")
+        # Display translation in matching text area
+        st.text_area(
+            "English translation:",
+            height=400,
+            value=st.session_state.translated_text,
+            placeholder="Your translated drill will appear here...",
+            key="drill_english_output",
+            label_visibility="collapsed"
+        )
         
-        # Output actions
         if st.session_state.translated_text:
-            cols = st.columns(2)
-            with cols[0]:
-                if st.button("📋 Copy to Clipboard", key="copy_drill_btn", use_container_width=True):
-                    st.session_state.copy_success_drill = True
-                    # Write to clipboard using JavaScript
-                    st.components.v1.html(
-                        f"""
-                        <script>
-                        navigator.clipboard.writeText(`{st.session_state.translated_text.replace('`', '\\`')}`);
-                        </script>
-                        """,
-                        height=0,
-                    )
-                
-                if st.session_state.copy_success_drill:
-                    st.success("✅ Copied!")
-                    # Reset after showing
-                    time.sleep(1)
-                    st.session_state.copy_success_drill = False
-                    
-            with cols[1]:
-                st.download_button(
-                    "💾 Download",
-                    data=st.session_state.translated_text,
-                    file_name=f"drill_translation_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-                    mime="text/plain",
-                    use_container_width=True
-                )
+            st.markdown("""
+            <div class="copy-instruction">
+                💡 To copy: Click in the text area above → Select All (Ctrl+A / Cmd+A) → Copy (Ctrl+C / Cmd+C)
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.download_button(
+                "💾 Download Translation",
+                data=st.session_state.translated_text,
+                file_name=f"drill_translation_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
     
     # Action buttons
     st.markdown("---")
@@ -660,39 +658,30 @@ with tab2:
     with col2:
         st.subheader("🇺🇸 English Translation")
         
-        # Display translation in a code block for easy copying
-        if st.session_state.general_translated_text:
-            st.code(st.session_state.general_translated_text, language=None)
-        else:
-            st.info("Your translation will appear here...")
+        # Display translation in matching text area
+        st.text_area(
+            "English translation:",
+            height=400,
+            value=st.session_state.general_translated_text,
+            placeholder="Your translation will appear here...",
+            key="general_english_output",
+            label_visibility="collapsed"
+        )
         
         if st.session_state.general_translated_text:
-            cols = st.columns(2)
-            with cols[0]:
-                if st.button("📋 Copy to Clipboard", key="copy_general_btn", use_container_width=True):
-                    st.session_state.copy_success_general = True
-                    st.components.v1.html(
-                        f"""
-                        <script>
-                        navigator.clipboard.writeText(`{st.session_state.general_translated_text.replace('`', '\\`')}`);
-                        </script>
-                        """,
-                        height=0,
-                    )
-                
-                if st.session_state.copy_success_general:
-                    st.success("✅ Copied!")
-                    time.sleep(1)
-                    st.session_state.copy_success_general = False
-                    
-            with cols[1]:
-                st.download_button(
-                    "💾 Download",
-                    data=st.session_state.general_translated_text,
-                    file_name=f"translation_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-                    mime="text/plain",
-                    use_container_width=True
-                )
+            st.markdown("""
+            <div class="copy-instruction">
+                💡 To copy: Click in the text area above → Select All (Ctrl+A / Cmd+A) → Copy (Ctrl+C / Cmd+C)
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.download_button(
+                "💾 Download Translation",
+                data=st.session_state.general_translated_text,
+                file_name=f"translation_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
     
     # Action buttons
     st.markdown("---")
@@ -726,14 +715,7 @@ with tab2:
                 st.warning("⚠️ Please enter Spanish text first")
     
     with col3:
-        if st.session_state.general_translated_text:
-            st.download_button(
-                "💾 Download",
-                data=st.session_state.general_translated_text,
-                file_name=f"translation_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-                mime="text/plain",
-                use_container_width=True
-            )
+        pass  # Empty column for spacing
 
 # SETTINGS TAB
 with tab3:
@@ -1022,7 +1004,7 @@ with tab4:
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #6B7280; font-size: 0.875rem; padding: 1rem;">
-    CV Spanish Translator • Powered by Coaches' Voice • 
+    CV Spanish Translator • Powered by Claude AI • 
     <span style="color: #5B47E0;">Model:</span> {model}
 </div>
 """.format(model=CLAUDE_MODELS[st.session_state.selected_model].split('(')[0].strip()), 
