@@ -550,13 +550,13 @@ with tab1:
         st.subheader("🇺🇸 English Translation")
         
         # Display translation in matching text area (read-only by user clicking)
-translated_display = st.text_area(
-    "English translation:",
-    height=400,
-    value=st.session_state.translated_text,
-    placeholder="Your translated drill will appear here...",
-    disabled=False  # Allows selection and copying
-)
+        translated_display = st.text_area(
+            "English translation:",
+            height=400,
+            value=st.session_state.translated_text,
+            placeholder="Your translated drill will appear here...",
+            disabled=False  # Allows selection and copying
+        )
         
         if st.session_state.translated_text:
             st.markdown("""
@@ -658,13 +658,13 @@ with tab2:
         st.subheader("🇺🇸 English Translation")
         
        # Display translation in matching text area (read-only by user clicking)
-general_display = st.text_area(
-    "English translation:",
-    height=400,
-    value=st.session_state.general_translated_text,
-    placeholder="Your translation will appear here...",
-    disabled=False  # Allows selection and copying
-)
+        general_display = st.text_area(
+            "English translation:",
+            height=400,
+            value=st.session_state.general_translated_text,
+            placeholder="Your translation will appear here...",
+            disabled=False  # Allows selection and copying
+        )
         
         if st.session_state.general_translated_text:
             st.markdown("""
