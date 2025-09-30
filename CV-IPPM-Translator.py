@@ -8,7 +8,6 @@ import io
 import hashlib
 import re
 from typing import Dict, List, Optional
-import pyperclip
 
 # Set up the page with improved config
 st.set_page_config(
