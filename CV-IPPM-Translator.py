@@ -1,4 +1,4 @@
-import streamlit as st
+fimport streamlit as st
 import anthropic
 from datetime import datetime
 import time
@@ -257,28 +257,28 @@ Terminology Guidelines:
 Provide ONLY the translated content in this exact structure. Do NOT include any analysis, reasoning, or breakdown before the translation. Start directly with the formatted translation:
 
 Topic
-[Main skill or technique focus]
+- [Main skill or technique focus]
 
 Principle 
-[Key coaching instruction or technical teaching point]
+- [Key coaching instruction or technical teaching point]
 
 Microcycle day
-[When this drill fits in training cycles]
+- [When this drill fits in training cycles]
 
 Time
-[Duration and number of sets]
+- [Duration and number of sets]
 
 Players
-[Total number of players needed]
+- [Total number of players needed]
 
 Physical focus
-[Specific conditioning aspect]
+- [Specific conditioning aspect]
 
 Space/equipment
-[Field dimensions in yards and required equipment]
+- [Field dimensions in yards and required equipment]
 
 Description
-[Clear, step-by-step explanation in natural, flowing English]
+- [Clear, step-by-step explanation in natural, flowing English]
 
 Progressions
 - More advanced: [Ways to increase difficulty]
@@ -1002,7 +1002,7 @@ with tab4:
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #6B7280; font-size: 0.875rem; padding: 1rem;">
-    CV Spanish Translator • Powered by Coaches' VOice • 
+    CV Spanish Translator • Powered by Coaches' Voice • 
     <span style="color: #5B47E0;">Model:</span> {model}
 </div>
 """.format(model=CLAUDE_MODELS[st.session_state.selected_model].split('(')[0].strip()), 
