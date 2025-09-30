@@ -205,6 +205,28 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     
+    /* Output container styling */
+    .output-container {
+        background: #f8f9fa;
+        border: 1px solid var(--gray-300);
+        border-radius: 8px;
+        padding: 1rem;
+        min-height: 400px;
+        max-height: 400px;
+        overflow-y: auto;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+    
+    .output-container:empty:before {
+        content: 'Your translated drill will appear here...';
+        color: #999;
+        font-style: italic;
+    }
+    
     /* Responsive design */
     @media (max-width: 768px) {
         .main-header h1 {
@@ -528,21 +550,22 @@ with tab1:
     with col2:
         st.subheader("🇺🇸 English Translation")
         
-        st.text_area(
-            "Translation will appear here:",
-            height=400,
-            value=st.session_state.translated_text,
-            placeholder="Your translated drill will appear here...",
-            key="drill_english_output",
-            disabled=True
-        )
+        # Display translation using markdown in a styled container
+        if st.session_state.translated_text:
+            st.markdown(f'<div class="output-container">{st.session_state.translated_text}</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="output-container"></div>', unsafe_allow_html=True)
         
         # Output actions
         if st.session_state.translated_text:
             cols = st.columns(2)
             with cols[0]:
-                st.button("📋 Copy to Clipboard", key="copy_drill", use_container_width=True, 
-                         help="Copy translation to clipboard")
+                if st.button("📋 Copy to Clipboard", key="copy_drill", use_container_width=True, 
+                         help="Copy translation to clipboard"):
+                    # Use Streamlit's built-in clipboard functionality
+                    st.write(f'<textarea id="drill_copy_text" style="position: absolute; left: -9999px;">{st.session_state.translated_text}</textarea>', unsafe_allow_html=True)
+                    st.write('<script>document.getElementById("drill_copy_text").select(); document.execCommand("copy");</script>', unsafe_allow_html=True)
+                    st.success("✅ Copied!")
             with cols[1]:
                 st.download_button(
                     "💾 Download",
@@ -577,7 +600,7 @@ with tab1:
                         st.session_state.spanish_input = spanish_text
                         st.success("✅ Translation complete!")
                         st.balloons()
-                        time.sleep(0.5)  # Brief pause to show success message
+                        time.sleep(0.5)
                         st.rerun()
                     else:
                         st.error(f"❌ Translation failed: {error}")
@@ -637,14 +660,11 @@ with tab2:
     with col2:
         st.subheader("🇺🇸 English Translation")
         
-        st.text_area(
-            "Translation will appear here:",
-            height=400,
-            value=st.session_state.general_translated_text,
-            placeholder="Your translation will appear here...",
-            key="general_english_output",
-            disabled=True
-        )
+        # Display translation using markdown in a styled container
+        if st.session_state.general_translated_text:
+            st.markdown(f'<div class="output-container">{st.session_state.general_translated_text}</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="output-container"></div>', unsafe_allow_html=True)
         
         if st.session_state.general_translated_text:
             if st.button("📋 Copy Translation", use_container_width=True, key="copy_general"):
