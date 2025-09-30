@@ -202,28 +202,6 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     
-    /* Output container styling */
-    .output-container {
-        background: #f8f9fa;
-        border: 1px solid var(--gray-300);
-        border-radius: 8px;
-        padding: 1rem;
-        min-height: 400px;
-        max-height: 400px;
-        overflow-y: auto;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        font-size: 0.95rem;
-        line-height: 1.6;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-    }
-    
-    .output-container:empty:before {
-        content: 'Your translated drill will appear here...';
-        color: #999;
-        font-style: italic;
-    }
-    
     /* Responsive design */
     @media (max-width: 768px) {
         .main-header h1 {
@@ -251,6 +229,7 @@ Here is the Spanish drill description to translate:
 - Use terminology familiar to American coaches while preserving technical accuracy  
 - Write descriptions that flow naturally and avoid clunky, overly formal language
 - Ensure every instruction is concrete and immediately actionable
+- When you see "Z1", "Z2", "Z3", etc., translate these to "Zone 1", "Zone 2", "Zone 3" with a capital Z
 
 **Terminology Guidelines:**
 - Keep "rondo" as-is (widely understood in coaching)
@@ -259,19 +238,11 @@ Here is the Spanish drill description to translate:
 - Convert measurements: multiply meters by 1.09, round to practical coaching measurements
 - "GRADIENTE (+)" → "More advanced:"
 - "GRADIENTE (-)" → "Simplified:"
+- "Z1", "Z2", "Z3", etc. → "Zone 1", "Zone 2", "Zone 3" with capital Z
 
-## Process
+## Output Format
 
-First, systematically analyze the Spanish content in <translation_breakdown> tags. Work through:
-
-1. **Key Spanish phrases**: Quote the most important phrases
-2. **Measurement conversion**: List meters and yard equivalents
-3. **Terminology mapping**: Spanish terms to American equivalents
-4. **Drill structure**: Break down timing, players, space, rules
-5. **Progressions**: Note any difficulty variations
-6. **Natural language check**: Identify complex constructions needing rewrite
-
-Then provide your complete translation using this exact structure:
+Provide ONLY the translated content in this exact structure. Do NOT include any analysis, reasoning, or breakdown before the translation. Start directly with the formatted translation:
 
 **Topic**
 [Main skill or technique focus]
@@ -320,6 +291,7 @@ Guidelines:
 - Keep technical soccer terms accurate
 - Ensure the translation sounds natural in English
 - Preserve the original meaning and tone
+- When you see "Z1", "Z2", "Z3", etc., translate these to "Zone 1", "Zone 2", "Zone 3" with a capital Z
 
 Provide only the English translation without any additional commentary."""
 
@@ -365,6 +337,27 @@ def safe_get(item: dict, key: str, default=0):
         return item.get(key, default)
     except (AttributeError, TypeError):
         return default
+
+def clean_translation_output(text: str) -> str:
+    """Remove analysis/reasoning sections and clean up the translation output"""
+    # Remove content between XML-style tags (like <translation_breakdown>)
+    text = re.sub(r'<[^>]+>.*?</[^>]+>', '', text, flags=re.DOTALL)
+    
+    # Remove any remaining XML-style tags
+    text = re.sub(r'<[^>]+>', '', text)
+    
+    # Find where the actual formatted translation starts (look for **Topic** or similar)
+    match = re.search(r'\*\*Topic\*\*', text, re.IGNORECASE)
+    if match:
+        text = text[match.start():]
+    
+    # Clean up excessive blank lines (more than 2 consecutive newlines)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    
+    # Ensure proper spacing after section headers
+    text = re.sub(r'(\*\*[^*]+\*\*)\n([^\n])', r'\1\n\n\2', text)
+    
+    return text.strip()
 
 def initialize_session_state():
     """Initialize session state with defaults"""
@@ -435,6 +428,9 @@ def translate_text(client, text: str, prompt_template: str, model: str):
         )
         
         translation = message.content[0].text
+        
+        # Clean up the translation output
+        translation = clean_translation_output(translation)
         
         # Cache result
         st.session_state.translation_cache[cache_key] = {
@@ -541,25 +537,21 @@ with tab1:
     with col2:
         st.subheader("🇺🇸 English Translation")
         
-        # Display translation using markdown in a styled container
-        if st.session_state.translated_text:
-            st.markdown(f'<div class="output-container">{st.session_state.translated_text}</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="output-container"></div>', unsafe_allow_html=True)
+        # Display translation in a text area that can be copied
+        translated_output = st.text_area(
+            "Translation:",
+            height=400,
+            value=st.session_state.translated_text,
+            placeholder="Your translated drill will appear here...",
+            key="drill_english_output",
+            label_visibility="collapsed"
+        )
         
         # Output actions
         if st.session_state.translated_text:
             cols = st.columns(2)
             with cols[0]:
-                # Collapsible copy field
-                with st.expander("📋 Click to copy text"):
-                    st.text_area(
-                        "Select all and copy (Ctrl+C / Cmd+C):",
-                        value=st.session_state.translated_text,
-                        height=100,
-                        key="drill_copy_field",
-                        label_visibility="visible"
-                    )
+                st.info("💡 Select the text above and copy it (Ctrl+C / Cmd+C)")
             with cols[1]:
                 st.download_button(
                     "💾 Download",
@@ -653,20 +645,27 @@ with tab2:
     with col2:
         st.subheader("🇺🇸 English Translation")
         
-        # Display translation using markdown in a styled container
-        if st.session_state.general_translated_text:
-            st.markdown(f'<div class="output-container">{st.session_state.general_translated_text}</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="output-container"></div>', unsafe_allow_html=True)
+        # Display translation in a text area that can be copied
+        general_translated_output = st.text_area(
+            "Translation:",
+            height=400,
+            value=st.session_state.general_translated_text,
+            placeholder="Your translation will appear here...",
+            key="general_english_output",
+            label_visibility="collapsed"
+        )
         
         if st.session_state.general_translated_text:
-            with st.expander("📋 Click to copy text"):
-                st.text_area(
-                    "Select all and copy (Ctrl+C / Cmd+C):",
-                    value=st.session_state.general_translated_text,
-                    height=100,
-                    key="general_copy_field",
-                    label_visibility="visible"
+            cols = st.columns(2)
+            with cols[0]:
+                st.info("💡 Select the text above and copy it (Ctrl+C / Cmd+C)")
+            with cols[1]:
+                st.download_button(
+                    "💾 Download",
+                    data=st.session_state.general_translated_text,
+                    file_name=f"translation_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                    mime="text/plain",
+                    use_container_width=True
                 )
     
     # Action buttons
@@ -997,7 +996,7 @@ with tab4:
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #6B7280; font-size: 0.875rem; padding: 1rem;">
-    CV Spanish Translator • Powered by Claude AI • 
+    CV Spanish Translator • 
     <span style="color: #5B47E0;">Model:</span> {model}
 </div>
 """.format(model=CLAUDE_MODELS[st.session_state.selected_model].split('(')[0].strip()), 
