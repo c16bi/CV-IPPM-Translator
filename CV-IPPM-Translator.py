@@ -551,15 +551,15 @@ with tab1:
         if st.session_state.translated_text:
             cols = st.columns(2)
             with cols[0]:
-                # Use a hidden text area that can be copied
-                st.text_area(
-                    "Copy from here:",
-                    value=st.session_state.translated_text,
-                    height=0,
-                    key="drill_copy_field",
-                    label_visibility="collapsed"
-                )
-                st.markdown("**👆 Select text above and copy (Ctrl+C / Cmd+C)**")
+                # Collapsible copy field
+                with st.expander("📋 Click to copy text"):
+                    st.text_area(
+                        "Select all and copy (Ctrl+C / Cmd+C):",
+                        value=st.session_state.translated_text,
+                        height=100,
+                        key="drill_copy_field",
+                        label_visibility="visible"
+                    )
             with cols[1]:
                 st.download_button(
                     "💾 Download",
@@ -593,7 +593,6 @@ with tab1:
                         st.session_state.translated_text = translation
                         st.session_state.spanish_input = spanish_text
                         st.success("✅ Translation complete!")
-                        st.balloons()
                         time.sleep(0.5)
                         st.rerun()
                     else:
@@ -661,14 +660,14 @@ with tab2:
             st.markdown('<div class="output-container"></div>', unsafe_allow_html=True)
         
         if st.session_state.general_translated_text:
-            st.text_area(
-                "Copy from here:",
-                value=st.session_state.general_translated_text,
-                height=0,
-                key="general_copy_field",
-                label_visibility="collapsed"
-            )
-            st.markdown("**👆 Select text above and copy (Ctrl+C / Cmd+C)**")
+            with st.expander("📋 Click to copy text"):
+                st.text_area(
+                    "Select all and copy (Ctrl+C / Cmd+C):",
+                    value=st.session_state.general_translated_text,
+                    height=100,
+                    key="general_copy_field",
+                    label_visibility="visible"
+                )
     
     # Action buttons
     st.markdown("---")
