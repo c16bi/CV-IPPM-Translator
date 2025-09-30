@@ -16,14 +16,11 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Available Claude models (based on current API availability)
+# Available Claude models (updated with new models and pricing)
 CLAUDE_MODELS = {
-    "claude-sonnet-4-20250514": "Claude Sonnet 4 (Recommended)",
-    "claude-opus-4-1-20250805": "Claude Opus 4.1 (Most Capable)",
-    "claude-opus-4-20250514": "Claude Opus 4 (Frontier Intelligence)",
-    "claude-3-7-sonnet-20250219": "Claude Sonnet 3.7 (Hybrid Reasoning)",
-    "claude-3-5-haiku-20241022": "Claude Haiku 3.5 (Fast & Efficient)",
-    "claude-3-haiku-20240307": "Claude Haiku 3 (Legacy - Cheapest)"
+    "claude-sonnet-4-5-20250929": "Claude Sonnet 4.5 (Recommended)",
+    "claude-sonnet-4-20250514": "Claude Sonnet 4",
+    "claude-3-5-haiku-20241022": "Claude Haiku 3.5"
 }
 
 # Cleaner, more modern CSS
@@ -330,7 +327,7 @@ def get_text_hash(text: str) -> str:
     """Generate a hash for caching purposes"""
     return hashlib.md5(text.encode()).hexdigest()
 
-def estimate_tokens(text: str, model: str = "claude-sonnet-4-20250514") -> int:
+def estimate_tokens(text: str, model: str = "claude-sonnet-4-5-20250929") -> int:
     """Rough estimation of tokens based on model"""
     if not text:
         return 0
@@ -338,34 +335,28 @@ def estimate_tokens(text: str, model: str = "claude-sonnet-4-20250514") -> int:
     base_estimate = len(text) // 4
     
     model_multipliers = {
+        "claude-sonnet-4-5-20250929": 1.0,
         "claude-sonnet-4-20250514": 1.0,
-        "claude-opus-4-1-20250805": 1.05,
-        "claude-opus-4-20250514": 1.05,
-        "claude-3-7-sonnet-20250219": 1.0,
-        "claude-3-5-haiku-20241022": 0.95,
-        "claude-3-haiku-20240307": 0.95
+        "claude-3-5-haiku-20241022": 0.95
     }
     
     multiplier = model_multipliers.get(model, 1.0)
     return int(base_estimate * multiplier)
 
 def get_model_cost_per_token(model: str) -> dict:
-    """Get cost per token for input/output (USD per 1K tokens)"""
+    """Get cost per token for input/output (USD per 1M tokens)"""
     costs = {
-        "claude-sonnet-4-20250514": {"input": 0.003, "output": 0.015},
-        "claude-opus-4-1-20250805": {"input": 0.015, "output": 0.075},
-        "claude-opus-4-20250514": {"input": 0.015, "output": 0.075},
-        "claude-3-7-sonnet-20250219": {"input": 0.003, "output": 0.015},
-        "claude-3-5-haiku-20241022": {"input": 0.0008, "output": 0.004},
-        "claude-3-haiku-20240307": {"input": 0.00025, "output": 0.00125}
+        "claude-sonnet-4-5-20250929": {"input": 3.0, "output": 15.0},
+        "claude-sonnet-4-20250514": {"input": 3.0, "output": 15.0},
+        "claude-3-5-haiku-20241022": {"input": 0.8, "output": 4.0}
     }
-    return costs.get(model, {"input": 0.003, "output": 0.015})
+    return costs.get(model, {"input": 3.0, "output": 15.0})
 
 def calculate_estimated_cost(input_tokens: int, output_tokens: int, model: str) -> float:
     """Calculate estimated cost for a translation"""
     costs = get_model_cost_per_token(model)
-    input_cost = (input_tokens / 1000) * costs["input"]
-    output_cost = (output_tokens / 1000) * costs["output"]
+    input_cost = (input_tokens / 1_000_000) * costs["input"]
+    output_cost = (output_tokens / 1_000_000) * costs["output"]
     return input_cost + output_cost
 
 def safe_get(item: dict, key: str, default=0):
@@ -386,7 +377,7 @@ def initialize_session_state():
         'saved_general_prompt': get_default_general_prompt(),
         'translation_cache': {},
         'current_batch_results': [],
-        'selected_model': "claude-sonnet-4-20250514",
+        'selected_model': "claude-sonnet-4-5-20250929",
         'api_ready': False,
         'spanish_input': "",
         'general_spanish_input': "",
@@ -403,7 +394,7 @@ def initialize_session_state():
     
     # Fix any invalid model selection
     if st.session_state.selected_model not in CLAUDE_MODELS:
-        st.session_state.selected_model = "claude-sonnet-4-20250514"
+        st.session_state.selected_model = "claude-sonnet-4-5-20250929"
 
 def setup_api_client():
     """Setup Anthropic API client"""
@@ -560,12 +551,15 @@ with tab1:
         if st.session_state.translated_text:
             cols = st.columns(2)
             with cols[0]:
-                if st.button("📋 Copy to Clipboard", key="copy_drill", use_container_width=True, 
-                         help="Copy translation to clipboard"):
-                    # Use Streamlit's built-in clipboard functionality
-                    st.write(f'<textarea id="drill_copy_text" style="position: absolute; left: -9999px;">{st.session_state.translated_text}</textarea>', unsafe_allow_html=True)
-                    st.write('<script>document.getElementById("drill_copy_text").select(); document.execCommand("copy");</script>', unsafe_allow_html=True)
-                    st.success("✅ Copied!")
+                # Use a hidden text area that can be copied
+                st.text_area(
+                    "Copy from here:",
+                    value=st.session_state.translated_text,
+                    height=0,
+                    key="drill_copy_field",
+                    label_visibility="collapsed"
+                )
+                st.markdown("**👆 Select text above and copy (Ctrl+C / Cmd+C)**")
             with cols[1]:
                 st.download_button(
                     "💾 Download",
@@ -608,10 +602,10 @@ with tab1:
                 st.warning("⚠️ Please enter Spanish text first")
     
     with col3:
-        if st.session_state.translated_text and st.button("📋 Copy & New", use_container_width=True, key="copy_new_drill"):
+        if st.session_state.translated_text and st.button("📋 Clear & New", use_container_width=True, key="copy_new_drill"):
             st.session_state.spanish_input = ""
             st.session_state.translated_text = ""
-            st.success("✅ Copied! Ready for next drill")
+            st.success("✅ Ready for next drill")
             time.sleep(0.5)
             st.rerun()
 
@@ -667,8 +661,14 @@ with tab2:
             st.markdown('<div class="output-container"></div>', unsafe_allow_html=True)
         
         if st.session_state.general_translated_text:
-            if st.button("📋 Copy Translation", use_container_width=True, key="copy_general"):
-                st.success("✅ Copied to clipboard!")
+            st.text_area(
+                "Copy from here:",
+                value=st.session_state.general_translated_text,
+                height=0,
+                key="general_copy_field",
+                label_visibility="collapsed"
+            )
+            st.markdown("**👆 Select text above and copy (Ctrl+C / Cmd+C)**")
     
     # Action buttons
     st.markdown("---")
@@ -723,7 +723,7 @@ with tab3:
             options=list(CLAUDE_MODELS.keys()),
             format_func=lambda x: CLAUDE_MODELS[x],
             index=list(CLAUDE_MODELS.keys()).index(st.session_state.selected_model),
-            help="Sonnet 4 recommended for best balance"
+            help="Sonnet 4.5 recommended for best performance"
         )
         
         if selected_model != st.session_state.selected_model:
@@ -734,8 +734,8 @@ with tab3:
         st.markdown(f"""
         <div class="info-box">
             <strong>Pricing:</strong><br>
-            Input: ${costs['input']:.4f}/1K<br>
-            Output: ${costs['output']:.4f}/1K
+            Input: ${costs['input']:.2f}/1M<br>
+            Output: ${costs['output']:.2f}/1M
         </div>
         """, unsafe_allow_html=True)
     
@@ -855,7 +855,7 @@ with tab4:
             calculate_estimated_cost(
                 safe_get(t, 'input_tokens', 0),
                 safe_get(t, 'output_tokens', 0),
-                safe_get(t, 'model', 'claude-sonnet-4-20250514')
+                safe_get(t, 'model', 'claude-sonnet-4-5-20250929')
             ) for t in st.session_state.translation_history
         )
         drill_count = len([t for t in st.session_state.translation_history if safe_get(t, 'type') == 'drill'])
