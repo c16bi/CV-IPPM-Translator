@@ -235,7 +235,7 @@ Here is the Spanish drill description to translate:
 
 ## Translation Requirements
 
-**Key Principles:**
+Key Principles:
 - Prioritize clarity and natural English over literal translation
 - Convert all measurements from meters to yards (practical rounding is acceptable)
 - Use terminology familiar to American coaches while preserving technical accuracy  
@@ -243,7 +243,7 @@ Here is the Spanish drill description to translate:
 - Ensure every instruction is concrete and immediately actionable
 - When you see "Z1", "Z2", "Z3", etc., translate these to "Zone 1", "Zone 2", "Zone 3" with a capital Z
 
-**Terminology Guidelines:**
+Terminology Guidelines:
 - Keep "rondo" as-is (widely understood in coaching)
 - "centro" → "crossing" or "cross"
 - "activación/calentamiento" → indicates warm-up content
@@ -256,38 +256,38 @@ Here is the Spanish drill description to translate:
 
 Provide ONLY the translated content in this exact structure. Do NOT include any analysis, reasoning, or breakdown before the translation. Start directly with the formatted translation:
 
-**Topic**
+Topic
 [Main skill or technique focus]
 
-**Principle** 
+Principle 
 [Key coaching instruction or technical teaching point]
 
-**Microcycle day**
+Microcycle day
 [When this drill fits in training cycles]
 
-**Time**
+Time
 [Duration and number of sets]
 
-**Players**
+Players
 [Total number of players needed]
 
-**Physical focus**
+Physical focus
 [Specific conditioning aspect]
 
-**Space/equipment**
+Space/equipment
 [Field dimensions in yards and required equipment]
 
-**Description**
+Description
 [Clear, step-by-step explanation in natural, flowing English]
 
-**Progressions**
-- **More advanced:** [Ways to increase difficulty]
-- **Simplified:** [Ways to reduce complexity]
+Progressions
+- More advanced: [Ways to increase difficulty]
+- Simplified: [Ways to reduce complexity]
 
-**Coaching points**
-- **[Brief title]:** [Specific, actionable instruction]
-- **[Brief title]:** [Specific, actionable instruction]  
-- **[Brief title]:** [Specific, actionable instruction]"""
+Coaching points
+- [Brief title]: [Specific, actionable instruction]
+- [Brief title]: [Specific, actionable instruction]  
+- [Brief title]: [Specific, actionable instruction]"""
 
 def get_default_general_prompt():
     """Return the default general translation prompt"""
@@ -1004,7 +1004,7 @@ with tab4:
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #6B7280; font-size: 0.875rem; padding: 1rem;">
-    CV Spanish Translator • Powered by Claude AI • 
+    CV Spanish Translator • Powered by Coaches' VOice • 
     <span style="color: #5B47E0;">Model:</span> {model}
 </div>
 """.format(model=CLAUDE_MODELS[st.session_state.selected_model].split('(')[0].strip()), 
